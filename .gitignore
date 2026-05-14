@@ -1,0 +1,28 @@
+# Database (keep the folder, ignore the actual DB files)
+lendflow.db
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Uploads
+static/uploads/*
+!static/uploads/.gitkeep

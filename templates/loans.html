@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Loans - LendFlow{% endblock %}
+{% block page_title %}Loan Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="mb-1">All Loans</h5>
+        <p class="text-muted mb-0">
+            {{ loans|length }} loan(s) found
+            {% if search_query %}
+            — matching "<strong>{{ search_query }}</strong>"
+            {% endif %}
+        </p>
+    </div>
+    {% if session.user_role in ('admin', 'loan_officer') %}
+    <a href="{{ url_for('new_loan') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Loan</a>
+    {% endif %}
+</div>
+
+<!-- Filter -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-center">
+            <div class="col-auto">
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('manage_loans', search=search_query) if search_query else url_for('manage_loans') }}" class="btn btn-sm btn-outline-secondary {% if not request.args.get('status') %}active{% endif %}">All</a>
+                    <a href="{{ url_for('manage_loans', status='pending', search=search_query) }}" class="btn btn-sm btn-outline-warning {% if request.args.get('status')=='pending' %}active{% endif %}">Pending</a>
+                    <a href="{{ url_for('manage_loans', status='active', search=search_query) }}" class="btn btn-sm btn-outline-success {% if request.args.get('status')=='active' %}active{% endif %}">Active</a>
+                    <a href="{{ url_for('manage_loans', status='paid', search=search_query) }}" class="btn btn-sm btn-outline-primary {% if request.args.get('status')=='paid' %}active{% endif %}">Paid</a>
+                    <a href="{{ url_for('manage_loans', status='defaulted', search=search_query) }}" class="btn btn-sm btn-outline-danger {% if request.args.get('status')=='defaulted' %}active{% endif %}">Defaulted</a>
+                </div>
+            </div>
+            <div class="col">
+                <form method="GET" action="{{ url_for('manage_loans') }}" class="d-flex gap-2">
+                    {% if request.args.get('status') %}
+                    <input type="hidden" name="status" value="{{ request.args.get('status') }}">
+                    {% endif %}
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" name="search" class="form-control" placeholder="Search by loan #, client name, or phone..." value="{{ search_query }}">
+                        <button type="submit" class="btn btn-outline-secondary">Search</button>
+                        {% if search_query %}
+                        <a href="{{ url_for('manage_loans', status=request.args.get('status')) }}" class="btn btn-outline-danger"><i class="bi bi-x-lg"></i></a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Loan #</th>
+                        <th>Client</th>
+                        <th>Principal</th>
+                        <th>Total</th>
+                        <th>Balance</th>
+                        <th>Schedule</th>
+                        <th>Next Payment</th>
+                        <th>Fine</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in loans %}
+                    <tr>
+                        <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                {% if loan.client_photo %}
+                                <img src="{{ url_for('uploaded_file', filename=loan.client_photo) }}" class="rounded-circle" style="width:28px;height:28px;object-fit:cover">
+                                {% else %}
+                                <div style="width:28px;height:28px;background:#b8860b;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:600">{{ loan.client_name[0] }}</div>
+                                {% endif %}
+                                <strong>{{ loan.client_name }}</strong>
+                            </div>
+                        </td>
+                        <td>UGX {{ "{:,.2f}".format(loan.principal) }}</td>
+                        <td>UGX {{ "{:,.2f}".format(loan.total_amount) }}</td>
+                        <td class="fw-semibold">UGX {{ "{:,.2f}".format(loan.balance) }}</td>
+                        <td><span class="badge bg-light text-dark">{{ loan.payment_schedule.title() }}</span></td>
+                        <td>{{ loan.next_payment_date or '-' }}</td>
+                        <td>
+                            {% if loan.fine_active %}
+                            <span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle"></i> {{ "{:,.2f}".format(loan.fine_amount) }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge-status badge-{{ loan.status }}">{{ loan.status.title() }}</span></td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
+                                {% if session.user_role in ('admin', 'loan_officer') %}
+                                <a href="{{ url_for('edit_loan', loan_id=loan.id) }}" class="btn btn-outline-warning" title="Edit"><i class="bi bi-pencil"></i></a>
+                                {% endif %}
+                                {% if session.user_role == 'admin' %}
+                                <button type="button" class="btn btn-outline-danger" title="Delete"
+                                        data-bs-toggle="modal" data-bs-target="#deleteLoanModal"
+                                        data-loan-id="{{ loan.id }}" data-loan-number="{{ loan.loan_number }}"
+                                        data-client-name="{{ loan.client_name }}" data-delete-url="{{ url_for('delete_loan', loan_id=loan.id) }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="10" class="text-center text-muted py-5">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        No loans found. {% if session.user_role in ('admin', 'loan_officer') %}<a href="{{ url_for('new_loan') }}">Create one</a>{% endif %}
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Loan Confirmation Modal -->
+<div class="modal fade" id="deleteLoanModal" tabindex="-1" aria-labelledby="deleteLoanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteLoanModalLabel"><i class="bi bi-exclamation-triangle me-2"></i>Delete Loan</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteLoanInfo"></strong>?</p>
+                <div class="alert alert-warning small mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Warning:</strong> This action cannot be undone. Loans with existing repayments cannot be deleted.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteLoanForm" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Delete Loan</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var deleteModal = document.getElementById('deleteLoanModal');
+    deleteModal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        var loanNumber = button.getAttribute('data-loan-number');
+        var clientName = button.getAttribute('data-client-name');
+        var deleteUrl = button.getAttribute('data-delete-url');
+
+        document.getElementById('deleteLoanInfo').textContent = loanNumber + ' — ' + clientName;
+        document.getElementById('deleteLoanForm').action = deleteUrl;
+    });
+});
+</script>
+{% endblock %}

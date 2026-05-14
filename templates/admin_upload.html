@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Data Import - Vaulta{% endblock %}
+{% block page_title %}Data Import{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-cloud-arrow-up me-2"></i>Upload Data File
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select File</label>
+                        <input type="file" name="data_file" class="form-control" accept=".csv,.xlsx,.xls" required>
+                        <div class="form-text">Supports .csv, .xlsx, .xls files</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="replace_data" id="replaceCheck" value="1">
+                            <label class="form-check-label" for="replaceCheck" style="font-size:13px;">
+                                <strong class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Replace existing data</strong>
+                                <span class="text-muted d-block" style="font-size:12px;margin-top:2px;">
+                                    Clears all existing loans, clients, repayments, notifications, and audit logs before importing.
+                                    Admin accounts are preserved. <strong>This cannot be undone.</strong>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload me-1"></i> Import Data
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% if import_result %}
+        <div class="card mb-4 border-{% if import_result.success %}success{% else %}danger{% endif %}">
+            <div class="card-header bg-{% if import_result.success %}success{% else %}danger{% endif %} text-white">
+                <i class="bi bi-{% if import_result.success %}check-circle{% else %}exclamation-triangle{% endif %} me-2"></i>
+                Import Result
+            </div>
+            <div class="card-body p-4">
+                <p class="fw-semibold">{{ import_result.message }}</p>
+
+                {% if import_result.errors %}
+                <div class="mt-3 p-3 rounded" style="background:#fef2f2;border:1px solid #fecaca;">
+                    <h6 class="text-danger mb-2" style="font-size:14px;">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        {{ import_result.errors|length }} Error{% if import_result.errors|length != 1 %}s{% endif %} Found
+                    </h6>
+                    <div style="max-height: 400px; overflow-y: auto; font-size: 13px; font-family: 'Inter', monospace;">
+                        {% for error in import_result.errors[:15] %}
+                        <div class="mb-2 p-2 rounded" style="background:#fff;border:1px solid #fee2e2;word-break:break-word;">
+                            <span class="text-danger fw-bold">Row {{ error.split(':')[0].replace('Row ','') if 'Row ' in error else '?' }}</span>
+                            <span class="text-muted ms-1">{{ error.split(':', 1)[1] if ':' in error else error }}</span>
+                        </div>
+                        {% endfor %}
+                        {% if import_result.errors|length > 15 %}
+                        <div class="text-muted text-center py-2" style="font-size:12px;">
+                            <i class="bi bi-three-dots me-1"></i> {{ import_result.errors|length - 15 }} more error{{ 's' if import_result.errors|length - 15 != 1 else '' }} not shown
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-info-circle me-2"></i>How It Works
+            </div>
+            <div class="card-body p-4">
+                <ol class="mb-0">
+                    <li class="mb-2">Prepare your data in <strong>CSV or Excel</strong> format</li>
+                    <li class="mb-2">Column headers must match the expected names below</li>
+                    <li class="mb-2">Upload the file — the system auto-detects the data type</li>
+                    <li class="mb-2">Data is imported into the correct tables automatically</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-table me-2"></i>Expected Columns
+            </div>
+            <div class="card-body p-3">
+                <h6 class="text-gold mb-2">Users / Clients</h6>
+                <code class="d-block text-muted mb-3" style="font-size:11px">username, email, password, role, full_name, phone, address, id_number</code>
+
+                <h6 class="text-gold mb-2">Client Profiles</h6>
+                <code class="d-block text-muted mb-3" style="font-size:11px">user_id, employer, monthly_income, credit_score, next_of_kin, next_of_kin_phone, bank_name, bank_account, mobile_money_number, notes</code>
+
+                <h6 class="text-gold mb-2">Loans</h6>
+                <code class="d-block text-muted mb-1" style="font-size:11px">client_name, principal, interest_rate, interest_type, payment_schedule, duration_months, purpose, guarantor_name, guarantor_phone, processing_fee</code>
+                <div class="small text-muted mb-3" style="font-size:11px">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Use <strong>client_name</strong> (full name) or <strong>client_phone</strong> — the system auto-looks up the client ID.
+                    <code class="d-block mt-1">client_id</code> (numeric ID) also works if you know it.
+                </div>
+
+                <h6 class="text-gold mb-2">Repayments</h6>
+                <code class="d-block text-muted mb-3" style="font-size:11px">loan_number, amount, payment_method, reference, notes</code>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-download me-2"></i>Download Templates
+            </div>
+            <div class="card-body p-3">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('download_template', template_type='clients') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Clients Template
+                    </a>
+                    <a href="{{ url_for('download_template', template_type='loans') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Loans Template
+                    </a>
+                    <a href="{{ url_for('download_template', template_type='repayments') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Repayments Template
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    const replaceCheck = document.getElementById('replaceCheck');
+    if (replaceCheck.checked) {
+        if (!confirm('⚠️ Replace existing data?\n\nThis will permanently delete ALL current loans, clients (except admins), repayments, notifications, audit logs, and SMS logs before importing the new data.\n\nThis cannot be undone. Are you sure?')) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+{% endblock %}

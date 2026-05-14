@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Clear Demo Data - Vaulta{% endblock %}
+{% block page_title %}Clear Demo Data{% endblock %}
+
+{% block head_extra %}
+<style>
+.clear-demo-card {
+    max-width: 580px;
+    margin: 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.clear-demo-header {
+    background: linear-gradient(135deg, #7f1d1d, #991b1b);
+    color: #fff;
+    padding: 24px 28px;
+    text-align: center;
+}
+.clear-demo-header .icon {
+    font-size: 40px;
+    margin-bottom: 8px;
+}
+.clear-demo-header h5 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 18px;
+}
+.clear-demo-header p {
+    margin: 6px 0 0;
+    opacity: 0.8;
+    font-size: 13px;
+}
+.clear-demo-body {
+    padding: 28px;
+}
+.clear-demo-body .warning-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: #991b1b;
+}
+.clear-demo-body .warning-box strong {
+    display: block;
+    margin-bottom: 4px;
+}
+.clear-demo-body .record-list {
+    background: #f8faf9;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    font-size: 13px;
+}
+.clear-demo-body .record-list .row-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid #eef2f0;
+}
+.clear-demo-body .record-list .row-item:last-child {
+    border-bottom: none;
+}
+.clear-demo-body .record-list .label { color: var(--text-muted); }
+.clear-demo-body .record-list .value { font-weight: 600; }
+
+.form-confirm {
+    margin-bottom: 20px;
+}
+.form-confirm label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text);
+}
+.form-confirm input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-align: center;
+    transition: border-color 0.15s;
+}
+.form-confirm input:focus {
+    outline: none;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
+}
+.form-confirm .hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.btn-danger-custom {
+    background: #dc2626;
+    border: none;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    width: 100%;
+    transition: background 0.15s;
+    cursor: pointer;
+}
+.btn-danger-custom:hover { background: #b91c1c; }
+.btn-danger-custom:disabled { background: #fca5a5; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="clear-demo-card">
+    <div class="clear-demo-header">
+        <div class="icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <h5>Clear All Demo Data</h5>
+        <p>This action removes all seed/test data from the system</p>
+    </div>
+    <div class="clear-demo-body">
+        <div class="warning-box">
+            <strong><i class="bi bi-shield-exclamation me-1"></i>Warning — Irreversible Action</strong>
+            This will permanently delete all demo/seed data including clients, loans, repayments,
+            notifications, audit logs, and SMS logs. <strong>Admin accounts will be preserved.</strong>
+        </div>
+
+        <div class="record-list">
+            <div class="row-item">
+                <span class="label"><i class="bi bi-people text-muted me-1"></i> Non-admin users</span>
+                <span class="value" style="color:#dc2626;">All deleted</span>
+            </div>
+            <div class="row-item">
+                <span class="label"><i class="bi bi-bank text-muted me-1"></i> Loans</span>
+                <span class="value" style="color:#dc2626;">All deleted</span>
+            </div>
+            <div class="row-item">
+                <span class="label"><i class="bi bi-currency-exchange text-muted me-1"></i> Repayments</span>
+                <span class="value" style="color:#dc2626;">All deleted</span>
+            </div>
+            <div class="row-item">
+                <span class="label"><i class="bi bi-bell text-muted me-1"></i> Notifications</span>
+                <span class="value" style="color:#dc2626;">All deleted</span>
+            </div>
+            <div class="row-item">
+                <span class="label"><i class="bi bi-journal-text text-muted me-1"></i> Audit logs</span>
+                <span class="value" style="color:#dc2626;">All deleted</span>
+            </div>
+            <div class="row-item">
+                <span class="label"><i class="bi bi-chat-dots text-muted me-1"></i> SMS logs</span>
+                <span class="value" style="color:#dc2626;">All deleted</span>
+            </div>
+            <div class="row-item" style="border-top:2px solid var(--dark-green);margin-top:4px;padding-top:8px;">
+                <span class="label" style="font-weight:600;color:var(--dark-green);"><i class="bi bi-shield-check me-1"></i> Admin users</span>
+                <span class="value" style="color:var(--dark-green);"><i class="bi bi-check-circle"></i> Preserved</span>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin_clear_demo_data') }}" onsubmit="return validateClear(event)">
+            <div class="form-confirm">
+                <label for="confirm">Type <span style="color:#dc2626;font-weight:800;">CLEAR</span> to confirm</label>
+                <input type="text" id="confirm" name="confirm" placeholder="Type CLEAR here" autocomplete="off" oninput="toggleButton()">
+                <div class="hint">This cannot be undone. Make sure you have a backup.</div>
+            </div>
+            <button type="submit" class="btn-danger-custom" id="clearBtn" disabled>
+                <i class="bi bi-trash3 me-1"></i> Delete All Demo Data
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleButton() {
+    const input = document.getElementById('confirm');
+    const btn = document.getElementById('clearBtn');
+    btn.disabled = input.value !== 'CLEAR';
+}
+function validateClear(e) {
+    const input = document.getElementById('confirm');
+    if (input.value !== 'CLEAR') {
+        e.preventDefault();
+        return false;
+    }
+    return confirm('Are you absolutely sure? This will permanently delete all demo data from the system.');
+}
+</script>
+{% endblock %}

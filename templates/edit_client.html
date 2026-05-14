@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ user.full_name }} - LendFlow{% endblock %}
+{% block page_title %}Edit Client Profile{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0 fw-semibold">{{ user.full_name }}'s Profile</h6></div>
+            <div class="card-body">
+                <form method="POST">
+                    <h6 class="fw-semibold mb-3">Employment & Income</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Employer</label>
+                            <input type="text" name="employer" class="form-control" value="{{ profile.employer if profile else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Monthly Income (UGX)</label>
+                            <input type="number" name="monthly_income" class="form-control" step="0.01" value="{{ profile.monthly_income if profile else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Credit Score</label>
+                            <input type="number" name="credit_score" class="form-control" value="{{ profile.credit_score if profile else '' }}">
+                        </div>
+                    </div>
+
+                    <h6 class="fw-semibold mb-3">Banking Details</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Bank Name</label>
+                            <input type="text" name="bank_name" class="form-control" value="{{ profile.bank_name if profile else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Bank Account</label>
+                            <input type="text" name="bank_account" class="form-control" value="{{ profile.bank_account if profile else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mobile Money Number</label>
+                            <input type="text" name="mpesa_number" class="form-control" value="{{ profile.mpesa_number if profile else '' }}">
+                        </div>
+                    </div>
+
+                    <h6 class="fw-semibold mb-3">Next of Kin</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Name</label>
+                            <input type="text" name="next_of_kin" class="form-control" value="{{ profile.next_of_kin if profile else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="next_of_kin_phone" class="form-control" value="{{ profile.next_of_kin_phone if profile else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="3">{{ profile.notes if profile else '' }}</textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+                        <a href="{{ url_for('client_profile', client_id=user.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

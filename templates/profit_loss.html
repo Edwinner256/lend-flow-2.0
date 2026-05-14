@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}Balance Sheet - Vaulta{% endblock %}
+{% block page_title %}Financial Statement{% endblock %}
+
+{% block content %}
+<!-- Controls -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label form-label-sm mb-0 fw-semibold" style="font-size:12px">Month</label>
+                <select name="month" class="form-select form-select-sm" style="width:auto">
+                    {% for m in range(1, 13) %}
+                    <option value="{{ m }}" {% if m == report.month %}selected{% endif %}>{{ '%02d' % m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label form-label-sm mb-0 fw-semibold" style="font-size:12px">Year</label>
+                <select name="year" class="form-select form-select-sm" style="width:auto">
+                    {% for y in range(2024, 2031) %}
+                    <option value="{{ y }}" {% if y == report.year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-gold"><i class="bi bi-funnel"></i> Apply</button>
+            </div>
+            <div class="col-auto ms-auto">
+                <a href="{{ url_for('profit_loss_pdf', year=report.year, month=report.month) }}" class="btn btn-sm btn-outline-dark" target="_blank">
+                    <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<h5 class="mb-3 fw-bold" style="color:var(--navy)">{{ report.month_name }}</h5>
+
+<!-- ==================== INCOME STATEMENT ==================== -->
+<div class="card mb-4">
+    <div class="card-header py-2" style="background:var(--navy);color:#fff">
+        <strong style="font-size:13px"><i class="bi bi-graph-up"></i> INCOME STATEMENT</strong>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <tbody style="font-size:13px">
+                    <tr style="background:#fef9e7">
+                        <th colspan="2" class="ps-3" style="font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:var(--navy)">Revenue</th>
+                    </tr>
+                    <tr>
+                        <td class="ps-4">Processing Fees</td>
+                        <td class="text-end pe-3">UGX {{ "{:,.0f}".format(report.processing_fees) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="ps-4">Interest Earned</td>
+                        <td class="text-end pe-3">UGX {{ "{:,.0f}".format(report.interest_earned) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="ps-4">Fines Collected</td>
+                        <td class="text-end pe-3">UGX {{ "{:,.0f}".format(report.fines_collected) }}</td>
+                    </tr>
+                    <tr style="background:#fef9e7">
+                        <td class="ps-3 fw-bold">Total Revenue</td>
+                        <td class="text-end pe-3 fw-bold">UGX {{ "{:,.0f}".format(report.total_revenue) }}</td>
+                    </tr>
+                    <tr style="background:#fef9e7">
+                        <td class="ps-3 fw-bold">Less: Funds Disbursed</td>
+                        <td class="text-end pe-3 fw-bold" style="color:#dc2626">UGX {{ "{:,.0f}".format(report.disbursed) }}</td>
+                    </tr>
+                    <tr style="background:#fef9e7;border-top:2px solid var(--navy)">
+                        <td class="ps-3 fw-bold" style="font-size:14px;color:var(--navy)">
+                            Net {{ 'Profit' if report.net_profit >= 0 else 'Loss' }}
+                        </td>
+                        <td class="text-end pe-3 fw-bold" style="font-size:14px;color:{% if report.net_profit >= 0 %}#16a34a{% else %}#dc2626{% endif %}">
+                            UGX {{ "{:,.0f}".format(report.net_profit) }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== BALANCE SHEET ==================== -->
+<div class="row g-3 mb-4">
+    <!-- ASSETS -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header py-2" style="background:var(--navy);color:#fff">
+                <strong style="font-size:13px"><i class="bi bi-briefcase"></i> ASSETS</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tbody style="font-size:13px">
+                            <tr style="background:#fef9e7">
+                                <th colspan="2" class="ps-3" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Current Assets</th>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Cash on Hand (Total Repayments)</td>
+                                <td class="text-end pe-3">UGX {{ "{:,.0f}".format(report.cash_on_hand) }}</td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Accounts Receivable (Outstanding Loans)</td>
+                                <td class="text-end pe-3">UGX {{ "{:,.0f}".format(report.accounts_receivable) }}</td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Fees Receivable</td>
+                                <td class="text-end pe-3">UGX {{ "{:,.0f}".format(report.fees_receivable) }}</td>
+                            </tr>
+                            <tr style="background:#fef9e7">
+                                <td class="ps-3 fw-bold">Total Current Assets</td>
+                                <td class="text-end pe-3 fw-bold">UGX {{ "{:,.0f}".format(report.total_current_assets) }}</td>
+                            </tr>
+                            <tr style="background:#fef9e7">
+                                <th colspan="2" class="ps-3" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Non-Current Assets</th>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Fines Receivable</td>
+                                <td class="text-end pe-3">UGX {{ "{:,.0f}".format(report.fines_receivable) }}</td>
+                            </tr>
+                            <tr style="background:#fef9e7;border-top:2px solid var(--navy)">
+                                <td class="ps-3 fw-bold" style="font-size:14px;color:var(--navy)">Total Assets</td>
+                                <td class="text-end pe-3 fw-bold" style="font-size:14px;color:var(--navy)">UGX {{ "{:,.0f}".format(report.total_assets) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIABILITIES & EQUITY -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header py-2" style="background:var(--navy);color:#fff">
+                <strong style="font-size:13px"><i class="bi bi-shield-check"></i> LIABILITIES & EQUITY</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tbody style="font-size:13px">
+                            <tr style="background:#fef9e7">
+                                <th colspan="2" class="ps-3" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Liabilities</th>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Unearned Interest (Deferred Revenue)</td>
+                                <td class="text-end pe-3">UGX {{ "{:,.0f}".format(report.unearned_interest) }}</td>
+                            </tr>
+                            <tr style="background:#fef9e7">
+                                <td class="ps-3 fw-bold">Total Liabilities</td>
+                                <td class="text-end pe-3 fw-bold">UGX {{ "{:,.0f}".format(report.total_liabilities) }}</td>
+                            </tr>
+                            <tr style="background:#fef9e7">
+                                <th colspan="2" class="ps-3" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Equity</th>
+                            </tr>
+                            <tr>
+                                <td class="ps-4">Retained Earnings</td>
+                                <td class="text-end pe-3">UGX {{ "{:,.0f}".format(report.retained_earnings) }}</td>
+                            </tr>
+                            <tr style="background:#fef9e7">
+                                <td class="ps-3 fw-bold">Total Equity</td>
+                                <td class="text-end pe-3 fw-bold">UGX {{ "{:,.0f}".format(report.total_equity) }}</td>
+                            </tr>
+                            <tr style="background:#fef9e7;border-top:2px solid var(--navy)">
+                                <td class="ps-3 fw-bold" style="font-size:14px;color:var(--navy)">Total Liabilities + Equity</td>
+                                <td class="text-end pe-3 fw-bold" style="font-size:14px;color:var(--navy)">UGX {{ "{:,.0f}".format(report.total_liabilities_equity) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Balance Check -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center">
+            {% if (report.total_assets - report.total_liabilities_equity)|abs < 0.01 %}
+            <i class="bi bi-check-circle-fill me-2" style="font-size:18px;color:#16a34a"></i>
+            <span class="fw-semibold" style="font-size:13px;color:#16a34a">Balance Sheet Balanced — Assets = Liabilities + Equity</span>
+            {% else %}
+            <i class="bi bi-exclamation-triangle-fill me-2" style="font-size:18px;color:#dc2626"></i>
+            <span class="fw-semibold" style="font-size:13px;color:#dc2626">
+                Balance Sheet Out of Balance — Difference: UGX {{ "{:,.2f}".format((report.total_assets - report.total_liabilities_equity)|abs) }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ==================== LOAN BREAKDOWN ==================== -->
+{% if report.loan_details %}
+<div class="card mb-4">
+    <div class="card-header py-2" style="background:var(--navy);color:#fff">
+        <strong style="font-size:13px"><i class="bi bi-list-ul"></i> LOAN BREAKDOWN — {{ report.month_name }}</strong>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px">
+                        <th class="ps-3">Loan #</th>
+                        <th>Client</th>
+                        <th class="text-end">Principal</th>
+                        <th class="text-end">Proc. Fee</th>
+                        <th class="text-end">Interest</th>
+                        <th class="text-end">Amount Paid</th>
+                        <th class="text-end">Balance</th>
+                        <th class="text-end">Fine</th>
+                        <th class="text-center pe-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size:13px">
+                    {% for loan in report.loan_details %}
+                    <tr>
+                        <td class="ps-3 fw-semibold">{{ loan.loan_number }}</td>
+                        <td>{{ loan.client_name }}</td>
+                        <td class="text-end">UGX {{ "{:,.0f}".format(loan.principal) }}</td>
+                        <td class="text-end">UGX {{ "{:,.0f}".format(loan.processing_fee) }}</td>
+                        <td class="text-end">UGX {{ "{:,.0f}".format(loan.interest) }}</td>
+                        <td class="text-end" style="color:#16a34a">UGX {{ "{:,.0f}".format(loan.amount_paid) }}</td>
+                        <td class="text-end fw-semibold">UGX {{ "{:,.0f}".format(loan.balance) }}</td>
+                        <td class="text-end" style="color:#dc2626">UGX {{ "{:,.0f}".format(loan.fine_amount) }}</td>
+                        <td class="text-center pe-3">
+                            {% if loan.status == 'active' %}
+                            <span class="badge" style="background:#fef9e7;color:#b8860b">Active</span>
+                            {% elif loan.status == 'paid' %}
+                            <span class="badge" style="background:#f0fdf4;color:#16a34a">Paid</span>
+                            {% elif loan.status == 'defaulted' %}
+                            <span class="badge" style="background:#fef2f2;color:#dc2626">Defaulted</span>
+                            {% elif loan.status == 'pending' %}
+                            <span class="badge bg-secondary">Pending</span>
+                            {% elif loan.status == 'approved' %}
+                            <span class="badge" style="background:#e0f2fe;color:#0284c7">Approved</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ loan.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card mb-4">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-inbox" style="font-size:48px;color:var(--text-muted)"></i>
+        <p class="mt-3 mb-0" style="color:var(--text-muted)">No loans were created in {{ report.month_name }}.</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- ==================== REPAYMENT HISTORY ==================== -->
+{% if report.repayments_summary %}
+<div class="card">
+    <div class="card-header py-2" style="background:var(--navy);color:#fff">
+        <strong style="font-size:13px"><i class="bi bi-arrow-down-circle"></i> REPAYMENTS — {{ report.month_name }}</strong>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px">
+                        <th class="ps-3">Date</th>
+                        <th>Loan #</th>
+                        <th>Client</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-center">Method</th>
+                        <th class="pe-3">Reference</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size:13px">
+                    {% for r in report.repayments_summary %}
+                    <tr>
+                        <td class="ps-3">{{ r.created_at[:10] }}</td>
+                        <td class="fw-semibold">{{ r.loan_number }}</td>
+                        <td>{{ r.client_name }}</td>
+                        <td class="text-end" style="color:#16a34a;font-weight:600">UGX {{ "{:,.0f}".format(r.amount) }}</td>
+                        <td class="text-center"><span class="badge bg-light text-dark">{{ r.payment_method|upper }}</span></td>
+                        <td class="pe-3 text-muted">{{ r.reference or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

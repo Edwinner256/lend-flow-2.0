@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %}New Loan - LendFlow{% endblock %}
+{% block page_title %}New Loan Application{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <form method="POST" id="loan-form" enctype="multipart/form-data">
+            <!-- Loan Details -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span><i class="bi bi-1-circle me-2 text-gold"></i>Loan Details</span>
+                </div>
+                <div class="card-body p-4">
+                    {% if clients %}
+                    <div class="mb-4">
+                        <label class="form-label">Client</label>
+                        <select name="client_id" class="form-select form-select-lg" required>
+                            <option value="">Select a client...</option>
+                            {% for c in clients %}
+                            <option value="{{ c.id }}">{{ c.full_name }} — {{ c.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% else %}
+                    <input type="hidden" name="client_id" value="{{ session.user_id }}">
+                    {% endif %}
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Principal Amount</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">UGX</span>
+                                <input type="number" name="principal" id="principal" class="form-control calc-trigger" step="0.01" placeholder="0.00" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Interest Rate</label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" name="interest_rate" id="interest_rate" class="form-control calc-trigger" step="0.01" value="10" required>
+                                <span class="input-group-text">% / mo</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Duration</label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" name="duration_months" id="duration_months" class="form-control calc-trigger" value="1" min="1" required>
+                                <span class="input-group-text">months</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label">Processing Fee</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">UGX</span>
+                                <input type="number" name="processing_fee" id="processing_fee" class="form-control calc-trigger" step="0.01" value="0" placeholder="0.00">
+                            </div>
+                            <div class="form-text">One-time fee charged to the client</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Schedule</label>
+                            <select name="payment_schedule" id="payment_schedule" class="form-select form-select-lg calc-trigger" required>
+                                <option value="monthly" selected>Monthly</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="daily">Daily</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-12">
+                            <label class="form-label">Interest Type</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check calc-trigger" name="interest_type" value="flat" id="flat">
+                                <label class="btn btn-outline-primary btn-lg" for="flat">Flat Rate</label>
+                                <input type="radio" class="btn-check calc-trigger" name="interest_type" value="reducing" id="reducing" checked>
+                                <label class="btn btn-outline-primary btn-lg" for="reducing">Reducing Balance</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span><i class="bi bi-2-circle me-2 text-gold"></i>Additional Information</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Loan Purpose</label>
+                        <textarea name="purpose" class="form-control" rows="2" placeholder="e.g., Business expansion, School fees, Medical bills..."></textarea>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Guarantor Name</label>
+                            <input type="text" name="guarantor_name" class="form-control" placeholder="Full name">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Guarantor Phone</label>
+                            <input type="text" name="guarantor_phone" class="form-control" placeholder="+256 7XX XXX XXX">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collateral -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span><i class="bi bi-3-circle me-2 text-gold"></i>Collateral</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-7">
+                            <label class="form-label">Collateral Photo</label>
+                            <label class="upload-zone" id="upload-zone" for="collateral_photo">
+                                <input type="file" name="collateral_photo" id="collateral_photo" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" accept="image/png,image/jpeg,image/gif">
+                                <div id="upload-placeholder" class="text-center py-4">
+                                    <i class="bi bi-cloud-arrow-up" style="font-size:32px;color:var(--dark-green)"></i>
+                                    <p class="mb-1 mt-2 fw-semibold" style="color:var(--text)">Click or drag to upload</p>
+                                    <small class="text-muted">PNG, JPG or GIF — Max 5MB</small>
+                                </div>
+                                <div id="upload-preview" class="text-center py-3" style="display:none">
+                                    <img id="preview-img" src="" alt="Collateral preview" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain">
+                                    <div class="mt-2">
+                                        <span id="preview-name" class="small fw-semibold" style="color:var(--dark-green)"></span>
+                                        <button type="button" id="remove-photo" class="btn btn-sm btn-outline-danger ms-2"><i class="bi bi-x-lg me-1"></i>Remove</button>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="p-3 rounded" style="background:var(--dark-green-bg);border:1px solid rgba(26,60,42,0.1)">
+                                <div class="small fw-semibold mb-2" style="color:var(--dark-green)"><i class="bi bi-info-circle me-1"></i>Collateral Guidelines</div>
+                                <ul class="mb-0 small text-muted ps-3">
+                                    <li>Clear photo of the collateral item</li>
+                                    <li>Include serial numbers if applicable</li>
+                                    <li>Multiple angles recommended</li>
+                                    <li>Must be readable and well-lit</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calculation Summary -->
+            <div class="card mb-3" id="calc-card" style="display:none">
+                <div class="card-header" style="background:var(--dark-green);color:#fff">
+                    <span><i class="bi bi-calculator me-2"></i>Loan Calculation Summary</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded" style="background:var(--dark-green-bg);border:1px solid rgba(26,60,42,0.1)">
+                                <div class="text-muted small mb-2" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Loan Breakdown</div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Principal</span>
+                                    <span class="fw-semibold" id="calc-principal">-</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Total Interest</span>
+                                    <span class="fw-semibold" style="color:var(--dark-gold)" id="calc-interest">-</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Processing Fee</span>
+                                    <span class="fw-semibold" style="color:var(--dark-gold)" id="calc-fee">-</span>
+                                </div>
+                                <hr class="my-2">
+                                <div class="d-flex justify-content-between">
+                                    <span class="fw-bold">Total Repayable</span>
+                                    <span class="fw-bold" style="color:var(--dark-gold)" id="calc-total">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 rounded" style="background:var(--dark-green-bg);border:1px solid rgba(26,60,42,0.1)">
+                                <div class="small mb-2" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;color:var(--dark-green)">Payment Schedule</div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Frequency</span>
+                                    <span class="fw-semibold" id="calc-schedule">-</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Per Payment</span>
+                                    <span class="fw-bold fs-5" style="color:var(--dark-green)" id="calc-installment">-</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Total Payments</span>
+                                    <span class="fw-semibold" id="calc-payments">-</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Completion Date</span>
+                                    <span class="fw-semibold" style="color:var(--dark-green)" id="calc-completion">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Calculations update automatically as you adjust the loan terms above</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('manage_loans') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Loans
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg px-4">
+                    <i class="bi bi-check-lg me-1"></i>Submit Application
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .upload-zone {
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        padding: 8px;
+        transition: border-color 0.2s, background 0.2s;
+        cursor: pointer;
+        min-height: 160px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+        border-color: var(--dark-gold);
+        background: var(--dark-gold-bg);
+    }
+    .upload-zone #upload-placeholder i { opacity: 0.6; }
+    .upload-zone #upload-placeholder p { margin: 0; }
+</style>
+
+<script>
+// Collateral photo upload
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('collateral_photo');
+const uploadPlaceholder = document.getElementById('upload-placeholder');
+const uploadPreview = document.getElementById('upload-preview');
+const previewImg = document.getElementById('preview-img');
+const previewName = document.getElementById('preview-name');
+const removeBtn = document.getElementById('remove-photo');
+
+// Drag-and-drop support (label handles clicks natively)
+uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('drag-over');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('drag-over');
+});
+
+uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        handleFile(e.dataTransfer.files[0]);
+    }
+});
+
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) {
+        handleFile(fileInput.files[0]);
+    }
+});
+
+removeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fileInput.value = '';
+    uploadPlaceholder.style.display = '';
+    uploadPreview.style.display = 'none';
+});
+
+function handleFile(file) {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        previewName.textContent = file.name;
+        uploadPlaceholder.style.display = 'none';
+        uploadPreview.style.display = '';
+    };
+    reader.readAsDataURL(file);
+}
+
+// Loan calculation
+document.querySelectorAll('.calc-trigger').forEach(el => {
+    el.addEventListener('input', calculateLoan);
+    el.addEventListener('change', calculateLoan);
+});
+
+function calculateLoan() {
+    const principal = parseFloat(document.getElementById('principal').value) || 0;
+    const interestRate = parseFloat(document.getElementById('interest_rate').value) || 0;
+    const duration = parseInt(document.getElementById('duration_months').value) || 0;
+    const schedule = document.getElementById('payment_schedule').value;
+    const interestType = document.querySelector('input[name="interest_type"]:checked')?.value || 'reducing';
+    const processingFee = parseFloat(document.getElementById('processing_fee').value) || 0;
+
+    if (principal <= 0 || duration <= 0) {
+        document.getElementById('calc-card').style.display = 'none';
+        return;
+    }
+
+    fetch('/api/calculate-loan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            principal: principal,
+            interest_rate: interestRate,
+            interest_type: interestType,
+            payment_schedule: schedule,
+            duration_months: duration
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('calc-card').style.display = 'block';
+
+        document.getElementById('calc-principal').textContent = 'UGX ' + principal.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('calc-interest').textContent = 'UGX ' + data.total_interest.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('calc-fee').textContent = 'UGX ' + processingFee.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('calc-total').textContent = 'UGX ' + (data.total_amount + processingFee).toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('calc-schedule').textContent = data.schedule_label;
+        document.getElementById('calc-installment').textContent = 'UGX ' + data.installment_amount.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('calc-payments').textContent = data.total_payments;
+        document.getElementById('calc-completion').textContent = data.completion_date;
+    });
+}
+</script>
+{% endblock %}

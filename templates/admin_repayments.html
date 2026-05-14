@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Vaulta - Repayment Management{% endblock %}
+{% block page_title %}Repayment Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-currency-exchange me-2 text-gold"></i>All Repayments
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Loan #</th>
+                        <th>Client</th>
+                        <th>Amount</th>
+                        <th>Type</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                        <th>Received By</th>
+                        <th>Date</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in repayments %}
+                    <tr>
+                        <td class="text-muted">{{ r.id }}</td>
+                        <td><strong>{{ r.loan_number }}</strong></td>
+                        <td>{{ r.client_name }}</td>
+                        <td><strong>UGX {{ "{:,.0f}".format(r.amount) }}</strong></td>
+                        <td>
+                            {% if r.payment_type == 'fine' %}
+                            <span class="badge" style="background:#dc2626;color:#fff;">Fine</span>
+                            {% else %}
+                            <span class="badge" style="background:var(--dark-green);color:#fff;">Principal</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if r.payment_method == 'mtn' %}
+                            <span class="badge" style="background:#ffd700;color:#000;">MTN Mobile Money</span>
+                            {% elif r.payment_method == 'airtel' %}
+                            <span class="badge" style="background:#e30a17;color:#fff;">Airtel Money</span>
+                            {% elif r.payment_method == 'mpesa' %}
+                            <span class="badge" style="background:#4bb543;color:#fff;">M-Pesa</span>
+                            {% elif r.payment_method == 'cash' %}
+                            <span class="badge" style="background:#fef3c7;color:#92400e;">Cash</span>
+                            {% elif r.payment_method == 'bank' %}
+                            <span class="badge" style="background:#e0e7ff;color:#3730a3;">Bank</span>
+                            {% elif r.payment_method == 'cheque' %}
+                            <span class="badge" style="background:#f1f5f9;color:#475569;">Cheque</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ r.payment_method }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ r.reference or '—' }}</td>
+                        <td>{{ r.received_by or '—' }}</td>
+                        <td class="text-muted">{{ r.created_at[:10] if r.created_at else '—' }}</td>
+                        <td class="text-end">
+                            <div class="d-flex gap-1 justify-content-end">
+                                <a href="{{ url_for('admin_edit_repayment', repayment_id=r.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% set delete_amount = '{:,.0f}'.format(r.amount) %}
+                                <form method="POST" action="{{ url_for('admin_delete_repayment', repayment_id=r.id) }}" style="display:inline" onsubmit="return confirm('Delete this repayment of UGX {{ delete_amount }}? Loan balance will be recalculated.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4 text-muted">
+                            <i class="bi bi-currency-exchange" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+                            No repayments recorded yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

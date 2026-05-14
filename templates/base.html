@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Vaulta{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --dark-green: #1a3c2a;
+            --dark-green-light: #24543a;
+            --dark-green-hover: #2d6b4a;
+            --dark-green-bg: #e8f5ee;
+            --dark-gold: #8b6914;
+            --dark-gold-light: #a67c1a;
+            --dark-gold-dark: #6b5010;
+            --dark-gold-bg: #fdf6e3;
+            --green: #16a34a;
+            --amber: #d97706;
+            --red: #dc2626;
+            --bg: #f5f7f6;
+            --surface: #ffffff;
+            --border: #d4ddd8;
+            --text: #1a3c2a;
+            --text-secondary: #4a6b58;
+            --text-muted: #7a9a88;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text);
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            position: fixed; top: 0; left: 0; width: 250px; height: 100vh;
+            background: var(--dark-green); color: #fff; z-index: 1000;
+            display: flex; flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-brand {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .sidebar-brand .logo {
+            width: 40px; height: 40px;
+            border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+        .sidebar-brand .logo img {
+            width: 100%; height: 100%; object-fit: contain;
+        }
+        .sidebar-brand h4 { margin: 0; font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+        .sidebar-brand small { color: var(--text-muted); font-size: 11px; font-weight: 500; }
+
+        .sidebar-nav { padding: 12px 0; flex: 1; overflow-y: auto; }
+        .sidebar-nav a {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 24px; color: var(--text-muted); text-decoration: none;
+            transition: all 0.15s; font-size: 13px; font-weight: 500;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-nav a:hover {
+            background: rgba(255,255,255,0.05); color: #e2e8f0;
+        }
+        .sidebar-nav a.active {
+            background: rgba(139,105,20,0.15); color: #fff;
+            border-left-color: var(--dark-gold);
+        }
+        .sidebar-nav a i { width: 18px; text-align: center; font-size: 15px; }
+        .sidebar-nav .section {
+            padding: 16px 24px 6px; font-size: 10px; font-weight: 600;
+            color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.2px;
+        }
+
+        .sidebar-footer {
+            padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .sidebar-footer .user-mini {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .sidebar-footer .user-avatar {
+            width: 32px; height: 32px; background: var(--dark-gold);
+            border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 13px; color: #fff;
+        }
+        .sidebar-footer .user-name { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+        .sidebar-footer .user-role { font-size: 11px; color: var(--text-muted); }
+
+        /* ── Main Content ── */
+        .main-content { margin-left: 250px; min-height: 100vh; }
+
+        .topbar {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 0 32px; height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .topbar h5 { margin: 0; font-weight: 600; font-size: 16px; letter-spacing: -0.2px; }
+        .topbar .user-info { display: flex; align-items: center; gap: 16px; }
+        .topbar .notif-btn {
+            position: relative; color: var(--text-secondary); font-size: 18px;
+            background: none; border: none; cursor: pointer; padding: 4px;
+        }
+        .topbar .notif-btn:hover { color: var(--text); }
+        .topbar .notif-count {
+            position: absolute; top: -2px; right: -4px;
+            width: 16px; height: 16px; background: var(--red);
+            border-radius: 50%; font-size: 9px; font-weight: 700;
+            color: #fff; display: flex; align-items: center; justify-content: center;
+        }
+        .topbar .divider { width: 1px; height: 28px; background: var(--border); }
+        .topbar .user-name { font-weight: 600; font-size: 13px; }
+        .topbar .user-role { font-size: 11px; color: var(--text-muted); }
+        .topbar .logout-btn {
+            color: var(--text-muted); background: none; border: none;
+            cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: 4px;
+        }
+        .topbar .logout-btn:hover { color: var(--red); background: #fef2f2; }
+
+        .content { padding: 28px 32px; }
+
+        /* ── Stat Cards ── */
+        .stat-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; padding: 20px;
+            transition: all 0.15s ease;
+        }
+        .stat-card:hover { border-color: var(--dark-green-light); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .stat-card .icon {
+            width: 40px; height: 40px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .stat-card .value { font-size: 22px; font-weight: 700; margin: 0; line-height: 1.3; letter-spacing: -0.5px; }
+        .stat-card .label { color: var(--text-secondary); font-size: 12px; font-weight: 500; margin-top: 2px; }
+
+        /* ── Cards ── */
+        .card { border: 1px solid var(--border); border-radius: 8px; box-shadow: none; }
+        .card-header {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 14px 20px; font-weight: 600; font-size: 13px;
+        }
+        .card-body { padding: 0; }
+
+        /* ── Tables ── */
+        .table { margin: 0; font-size: 13px; }
+        .table thead th {
+            background: var(--dark-green-bg); border-bottom: 1px solid var(--border);
+            font-weight: 600; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--text-secondary); padding: 10px 16px;
+        }
+        .table tbody td { padding: 12px 16px; vertical-align: middle; border-bottom: 1px solid #e8ede9; }
+        .table tbody tr:hover { background: var(--dark-green-bg); }
+        .table tbody tr:last-child td { border-bottom: none; }
+
+        /* ── Badges ── */
+        .badge-status {
+            padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-active { background: #dcfce7; color: #166534; }
+        .badge-paid { background: var(--dark-green-bg); color: var(--dark-green); }
+        .badge-defaulted { background: #fee2e2; color: #991b1b; }
+        .badge-rejected { background: #f1f5f9; color: #475569; }
+
+        /* ── Buttons ── */
+        .btn-primary { background: var(--dark-gold); border-color: var(--dark-gold); font-weight: 500; font-size: 13px; }
+        .btn-primary:hover { background: var(--dark-gold-light); border-color: var(--dark-gold-light); }
+        .btn-outline-primary { color: var(--dark-gold); border-color: var(--dark-gold); }
+        .btn-outline-primary:hover { background: var(--dark-gold); border-color: var(--dark-gold); color: #fff; }
+        .btn-outline-primary.active { background: var(--dark-gold); border-color: var(--dark-gold); color: #fff; }
+        .text-gold { color: var(--dark-gold) !important; }
+        .bg-gold { background: var(--dark-gold) !important; }
+        .border-gold { border-color: var(--dark-gold) !important; }
+        .btn-sm { font-size: 12px; padding: 4px 10px; }
+
+        /* ── Toggle Buttons ── */
+        .toggle-btn {
+            font-size: 12px; font-weight: 500; padding: 6px 14px;
+            border-radius: 6px; transition: all 0.15s;
+        }
+        .toggle-btn.active { color: #fff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+        .toggle-btn[data-target="recent-loans"].active { background: var(--dark-gold); border-color: var(--dark-gold); }
+        .toggle-btn[data-target="active-loans"].active { background: var(--dark-green); border-color: var(--dark-green); }
+        .toggle-btn[data-target="pending-loans"].active { background: var(--amber); border-color: var(--amber); }
+        .toggle-btn[data-target="defaulted-loans"].active { background: var(--red); border-color: var(--red); }
+        .toggle-btn[data-target="paid-loans"].active { background: #0891b2; border-color: #0891b2; }
+        .toggle-btn[data-target="overdue-loans"].active { background: var(--dark-green); border-color: var(--dark-green); }
+        .toggle-btn[data-target="disbursed-loans"].active { background: var(--dark-gold); border-color: var(--dark-gold); }
+        .toggle-btn[data-target="collected-loans"].active { background: var(--dark-green); border-color: var(--dark-green); }
+        .toggle-btn[data-target="outstanding-loans"].active { background: var(--amber); border-color: var(--amber); }
+        .toggle-btn[data-target="fines-section"].active { background: var(--red); border-color: var(--red); }
+
+        /* ── Alerts ── */
+        .alert { border-radius: 8px; font-size: 13px; padding: 12px 16px; border-width: 1px; }
+        .alert-info {
+            background: var(--dark-green);
+            color: #fff;
+            border-color: var(--dark-green);
+            text-align: center;
+            font-weight: 500;
+        }
+        .alert-info .btn-close { filter: invert(1); }
+
+        /* ── Animations ── */
+        .toggle-section { animation: fadeSlideIn 0.2s ease; }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .content { padding: 20px 16px; }
+            .topbar { padding: 0 16px; }
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    {# ── LOAN VIEWER SIDEBAR (minimal) ── #}
+    {% if session.get('loan_view') %}
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="logo"><img src="{{ url_for('static', filename='logo.png') }}" alt="Vaulta"></div>
+            <div>
+                <h4>Vaulta</h4>
+                <small>Client Portal</small>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="section">My Account</div>
+            <a href="{{ url_for('client_my_loan') }}" class="{% if request.endpoint == 'client_my_loan' %}active{% endif %}">
+                <i class="bi bi-bank"></i> My Loan
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-mini">
+                <div class="user-avatar">{{ session.full_name[0] if session.full_name else 'U' }}</div>
+                <div>
+                    <div class="user-name">{{ session.full_name }}</div>
+                    <div class="user-role">Client (View Only)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% elif session.get('user_id') %}
+    <!-- Full Sidebar for Staff -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="logo"><img src="{{ url_for('static', filename='logo.png') }}" alt="Vaulta"></div>
+            <div>
+                <h4>Vaulta</h4>
+                <small>Loan Management</small>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="section">Overview</div>
+            <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-grid-1x2"></i> Dashboard
+            </a>
+
+            {% if session.user_role in ('admin', 'loan_officer') %}
+            <div class="section">Management</div>
+            <a href="{{ url_for('manage_clients') }}" class="{% if 'client' in request.endpoint %}active{% endif %}">
+                <i class="bi bi-people"></i> Clients
+            </a>
+            <a href="{{ url_for('manage_loans') }}" class="{% if 'loan' in request.endpoint and request.endpoint != 'new_loan' %}active{% endif %}">
+                <i class="bi bi-bank"></i> Loans
+            </a>
+            <a href="{{ url_for('new_loan') }}" class="{% if request.endpoint == 'new_loan' %}active{% endif %}">
+                <i class="bi bi-plus-circle"></i> New Loan
+            </a>
+            <a href="{{ url_for('accept_payment') }}" class="{% if request.endpoint == 'accept_payment' %}active{% endif %}">
+                <i class="bi bi-cash-coin"></i> Accept Payment
+            </a>
+            {% endif %}
+
+            <div class="section">Communication</div>
+            <a href="{{ url_for('notifications') }}" class="{% if request.endpoint == 'notifications' %}active{% endif %}">
+                <i class="bi bi-bell"></i> Notifications
+                <span class="badge bg-danger ms-auto" id="notif-badge" style="display:none;font-size:10px">0</span>
+            </a>
+
+            {% if session.user_role == 'admin' %}
+            <div class="section">Administration</div>
+            <a href="{{ url_for('register') }}">
+                <i class="bi bi-person-plus"></i> Create User
+            </a>
+            <a href="{{ url_for('admin_users') }}" class="{% if request.endpoint == 'admin_users' or request.endpoint == 'admin_edit_user' %}active{% endif %}">
+                <i class="bi bi-people-fill"></i> All Users
+            </a>
+            <a href="{{ url_for('admin_repayments') }}" class="{% if request.endpoint == 'admin_repayments' or request.endpoint == 'admin_edit_repayment' %}active{% endif %}">
+                <i class="bi bi-currency-exchange"></i> Repayments
+            </a>
+            <a href="{{ url_for('admin_audit_logs') }}" class="{% if request.endpoint == 'admin_audit_logs' %}active{% endif %}">
+                <i class="bi bi-journal-text"></i> Audit Logs
+            </a>
+            <a href="{{ url_for('admin_upload') }}" class="{% if request.endpoint == 'admin_upload' %}active{% endif %}">
+                <i class="bi bi-cloud-arrow-up"></i> Data Import
+            </a>
+            <a href="{{ url_for('admin_sms') }}" class="{% if request.endpoint == 'admin_sms' %}active{% endif %}">
+                <i class="bi bi-chat-dots"></i> SMS Center
+            </a>
+            <a href="{{ url_for('profit_loss_report') }}" class="{% if request.endpoint == 'profit_loss_report' %}active{% endif %}">
+                <i class="bi bi-file-earmark-bar-graph"></i> Profit & Loss
+            </a>
+            <a href="{{ url_for('admin_clear_demo_data') }}" class="{% if request.endpoint == 'admin_clear_demo_data' %}active{% endif %}">
+                <i class="bi bi-trash3"></i> Clear Demo Data
+            </a>
+            {% endif %}
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-mini">
+                <div class="user-avatar">{{ session.full_name[0] if session.full_name else 'U' }}</div>
+                <div>
+                    <div class="user-name">{{ session.full_name }}</div>
+                    <div class="user-role">{{ session.user_role.replace('_', ' ').title() }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        {# ── LOAN VIEWER TOPBAR ── #}
+        {% if session.get('loan_view') %}
+        <div class="topbar">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-sm btn-outline-secondary d-md-none" onclick="document.getElementById('sidebar').classList.toggle('show')">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h5>My Loan</h5>
+            </div>
+            <div class="user-info">
+                <div class="divider"></div>
+                <div>
+                    <div class="user-name">{{ session.full_name }}</div>
+                    <div class="user-role">Client (View Only)</div>
+                </div>
+                <button class="logout-btn" onclick="window.location='{{ url_for('client_loan_logout') }}'" title="Logout">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        {% elif session.get('user_id') %}
+        <div class="topbar">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-sm btn-outline-secondary d-md-none" onclick="document.getElementById('sidebar').classList.toggle('show')">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h5>{% block page_title %}Dashboard{% endblock %}</h5>
+            </div>
+            <div class="user-info">
+                <a href="{{ url_for('notifications') }}" class="notif-btn">
+                    <i class="bi bi-bell"></i>
+                    <span class="notif-count" id="top-notif-count" style="display:none">0</span>
+                </a>
+                <div class="divider"></div>
+                <div>
+                    <div class="user-name">{{ session.full_name }}</div>
+                    <div class="user-role">{{ session.user_role.replace('_', ' ').title() }}</div>
+                </div>
+                <a href="{{ url_for('change_password_route') }}" class="logout-btn" title="Change Password" style="color:var(--text-secondary)">
+                    <i class="bi bi-shield-lock"></i>
+                </a>
+                <button class="logout-btn" onclick="window.location='{{ url_for('logout') }}'" title="Logout">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function updateNotifBadge() {
+            try {
+                const res = await fetch('/api/notifications/unread');
+                const data = await res.json();
+                const count = data.count;
+                const badge = document.getElementById('top-notif-count');
+                const sidebarBadge = document.getElementById('notif-badge');
+                if (count > 0) {
+                    badge.textContent = count > 9 ? '9+' : count;
+                    badge.style.display = 'flex';
+                    sidebarBadge.textContent = count;
+                    sidebarBadge.style.display = 'inline';
+                } else {
+                    badge.style.display = 'none';
+                    sidebarBadge.style.display = 'none';
+                }
+            } catch(e) {}
+        }
+        updateNotifBadge();
+        setInterval(updateNotifBadge, 30000);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

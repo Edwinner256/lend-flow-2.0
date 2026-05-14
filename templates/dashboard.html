@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - LendFlow{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Welcome Banner -->
+<div class="card mb-3" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border: none;">
+    <div class="card-body py-3 px-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 text-gold" id="greetingText" data-name="{{ session.full_name }}">Good day, {{ session.full_name }}!</h5>
+                <p class="mb-0" style="color: #d4a017; font-size: 13px;">
+                    {% if session.user_role == 'admin' %}
+                    Here's your portfolio overview. You have <strong class="text-gold">{{ stats.pending_loans }}</strong> loan(s) pending approval.
+                    {% elif session.user_role == 'loan_officer' %}
+                    Ready to manage clients and loans? You have <strong class="text-gold">{{ stats.pending_loans }}</strong> loan(s) awaiting review.
+                    {% else %}
+                    Manage your loans and track your repayments from here.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="d-none d-md-block" style="font-size: 48px; opacity: 0.15; color: #b8860b;">
+                {% if session.user_role == 'admin' %}🛡️{% elif session.user_role == 'loan_officer' %}💼{% else %}👤{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card py-2" style="cursor:pointer" onclick="toggleSection('recent-loans', this)">
+            <div class="d-flex align-items-center">
+                <div class="icon" style="width:32px;height:32px;font-size:14px;background:var(--dark-gold-bg);color:var(--dark-gold)"><i class="bi bi-people"></i></div>
+                <div class="ms-2">
+                    <div class="value" style="font-size:15px">{{ stats.total_clients }}</div>
+                    <div class="label" style="font-size:10px">Total Clients</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card py-2" style="cursor:pointer" onclick="toggleSection('active-loans', this)">
+            <div class="d-flex align-items-center">
+                <div class="icon" style="width:32px;height:32px;font-size:14px;background:var(--dark-green-bg);color:var(--dark-green)"><i class="bi bi-bank"></i></div>
+                <div class="ms-2">
+                    <div class="value" style="font-size:15px">{{ stats.active_loans }}</div>
+                    <div class="label" style="font-size:10px">Active Loans</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card py-2" style="cursor:pointer" onclick="toggleSection('pending-loans', this)">
+            <div class="d-flex align-items-center">
+                <div class="icon" style="width:32px;height:32px;font-size:14px;background:#fffbeb;color:#d97706"><i class="bi bi-clock"></i></div>
+                <div class="ms-2">
+                    <div class="value" style="font-size:15px">{{ stats.pending_loans }}</div>
+                    <div class="label" style="font-size:10px">Pending</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card py-2" style="cursor:pointer" onclick="toggleSection('defaulted-loans', this)">
+            <div class="d-flex align-items-center">
+                <div class="icon" style="width:32px;height:32px;font-size:14px;background:#fef2f2;color:#dc2626"><i class="bi bi-exclamation-triangle"></i></div>
+                <div class="ms-2">
+                    <div class="value" style="font-size:15px">{{ stats.defaulted_loans }}</div>
+                    <div class="label" style="font-size:10px">Defaulted</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Overview -->
+<div class="row g-2 mb-3">
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card" style="cursor:pointer" onclick="toggleSection('disbursed-loans', this)">
+            <div class="d-flex align-items-center">
+                <div class="icon" style="background:var(--dark-gold-bg);color:var(--dark-gold)"><i class="bi bi-arrow-up-right"></i></div>
+                <div class="ms-3">
+                    <div class="value" style="font-size:18px">UGX {{ "{:,.0f}".format(stats.total_disbursed) }}</div>
+                    <div class="label">Total Disbursed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card" style="cursor:pointer" onclick="toggleSection('collected-loans', this)">
+            <div class="d-flex align-items-center">
+                <div class="icon" style="background:var(--dark-green-bg);color:var(--dark-green)"><i class="bi bi-arrow-down-right"></i></div>
+                <div class="ms-3">
+                    <div class="value" style="font-size:18px">UGX {{ "{:,.0f}".format(stats.total_collected) }}</div>
+                    <div class="label">Total Collected</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card" style="cursor:pointer" onclick="toggleSection('outstanding-loans', this)">
+            <div class="d-flex align-items-center">
+                <div class="icon" style="background:#fffbeb;color:#d97706"><i class="bi bi-hourglass"></i></div>
+                <div class="ms-3">
+                    <div class="value" style="font-size:18px">UGX {{ "{:,.0f}".format(stats.total_outstanding) }}</div>
+                    <div class="label">Outstanding</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-card" style="cursor:pointer" onclick="toggleSection('fines-section', this)">
+            <div class="d-flex align-items-center">
+                <div class="icon" style="background:#fef2f2;color:#dc2626"><i class="bi bi-receipt"></i></div>
+                <div class="ms-3">
+                    <div class="value" style="font-size:18px">UGX {{ "{:,.0f}".format(stats.total_fines) }}</div>
+                    <div class="label">Active Fines</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Buttons -->
+<div class="d-flex flex-wrap gap-2 mb-2">
+    <button type="button" class="btn toggle-btn" style="color:var(--dark-gold);border-color:var(--dark-gold)" data-target="recent-loans">
+        <i class="bi bi-clock me-1"></i>Recent
+        <span class="badge ms-1" style="font-size:10px;background:var(--dark-gold);color:#fff">{{ stats.recent_loans|length }}</span>
+    </button>
+    <button type="button" class="btn toggle-btn" style="color:var(--dark-green);border-color:var(--dark-green)" data-target="active-loans">
+        <i class="bi bi-play-circle me-1"></i>Active
+        <span class="badge ms-1" style="font-size:10px;background:var(--dark-green);color:#fff">{{ stats.active_loans }}</span>
+    </button>
+    <button type="button" class="btn btn-outline-warning toggle-btn" data-target="pending-loans">
+        <i class="bi bi-hourglass-split me-1"></i>Pending
+        <span class="badge bg-warning text-dark ms-1" style="font-size:10px">{{ stats.pending_loans }}</span>
+    </button>
+    <button type="button" class="btn btn-outline-danger toggle-btn" data-target="defaulted-loans">
+        <i class="bi bi-exclamation-triangle me-1"></i>Defaulted
+        <span class="badge bg-danger ms-1" style="font-size:10px">{{ stats.defaulted_loans }}</span>
+    </button>
+    <button type="button" class="btn toggle-btn" style="color:var(--dark-green);border-color:var(--dark-green)" data-target="paid-loans">
+        <i class="bi bi-check-circle me-1"></i>Paid
+    </button>
+    <button type="button" class="btn toggle-btn" style="color:var(--dark-green);border-color:var(--dark-green)" data-target="overdue-loans">
+        <i class="bi bi-calendar-x me-1"></i>Overdue
+        <span class="badge ms-1" style="font-size:10px;background:var(--dark-green);color:#fff">{{ stats.overdue_loans|length }}</span>
+    </button>
+    <button type="button" class="btn toggle-btn" style="color:var(--dark-gold);border-color:var(--dark-gold)" data-target="disbursed-loans">
+        <i class="bi bi-arrow-up-right me-1"></i>Disbursed
+    </button>
+    <button type="button" class="btn toggle-btn" style="color:var(--dark-green);border-color:var(--dark-green)" data-target="collected-loans">
+        <i class="bi bi-arrow-down-right me-1"></i>Collected
+    </button>
+    <button type="button" class="btn btn-outline-warning toggle-btn" data-target="outstanding-loans">
+        <i class="bi bi-hourglass me-1"></i>Outstanding
+    </button>
+    <button type="button" class="btn btn-outline-danger toggle-btn" data-target="fines-section">
+        <i class="bi bi-receipt me-1"></i>Fines
+    </button>
+</div>
+
+<!-- Recent Loans -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="recent-loans" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-clock me-2 text-muted"></i>Recent Loans</span>
+                <a href="{{ url_for('manage_loans') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Loan #</th>
+                                <th>Client</th>
+                                <th>Principal</th>
+                                <th>Schedule</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in stats.recent_loans %}
+                            <tr>
+                                <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                                <td>{{ loan.client_name }}</td>
+                                <td>UGX {{ "{:,.2f}".format(loan.principal) }}</td>
+                                <td><span class="badge bg-light text-dark">{{ loan.payment_schedule.title() }}</span></td>
+                                <td><span class="badge-status badge-{{ loan.status }}">{{ loan.status.title() }}</span></td>
+                                <td class="text-muted">{{ loan.created_at[:10] }}</td>
+                                <td><a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="7" class="text-center text-muted py-4">No loans yet</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Loans -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="active-loans" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-play-circle me-2 text-success"></i>Active Loans</span>
+                <a href="{{ url_for('manage_loans') }}?status=active" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Loan #</th>
+                                <th>Client</th>
+                                <th>Principal</th>
+                                <th>Balance</th>
+                                <th>Schedule</th>
+                                <th>Next Payment</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in stats.recent_loans %}
+                            {% if loan.status == 'active' %}
+                            <tr>
+                                <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                                <td>{{ loan.client_name }}</td>
+                                <td>UGX {{ "{:,.2f}".format(loan.principal) }}</td>
+                                <td class="fw-semibold text-danger">UGX {{ "{:,.2f}".format(loan.balance) }}</td>
+                                <td><span class="badge bg-light text-dark">{{ loan.payment_schedule.title() }}</span></td>
+                                <td class="text-muted">{{ loan.created_at[:10] }}</td>
+                                <td><a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            {% if stats.active_loans == 0 %}
+                            <tr><td colspan="7" class="text-center text-muted py-4">No active loans</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Loans -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="pending-loans" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-hourglass-split me-2 text-warning"></i>Pending Approval</span>
+                <a href="{{ url_for('manage_loans') }}?status=pending" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Loan #</th>
+                                <th>Client</th>
+                                <th>Amount</th>
+                                <th>Schedule</th>
+                                <th>Applied</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in stats.recent_loans %}
+                            {% if loan.status == 'pending' %}
+                            <tr>
+                                <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                                <td>{{ loan.client_name }}</td>
+                                <td>UGX {{ "{:,.2f}".format(loan.principal) }}</td>
+                                <td><span class="badge bg-light text-dark">{{ loan.payment_schedule.title() }}</span></td>
+                                <td class="text-muted">{{ loan.created_at[:10] }}</td>
+                                <td><a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-primary">Review</a></td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            {% if stats.pending_loans == 0 %}
+                            <tr><td colspan="6" class="text-center text-muted py-4">No pending loans</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Defaulted Loans -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="defaulted-loans" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-exclamation-triangle me-2 text-danger"></i>Defaulted Loans</span>
+                <a href="{{ url_for('manage_loans') }}?status=defaulted" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Loan #</th>
+                                <th>Client</th>
+                                <th>Balance</th>
+                                <th>Fine</th>
+                                <th>Next Payment</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in stats.recent_loans %}
+                            {% if loan.status == 'defaulted' %}
+                            <tr>
+                                <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                                <td>{{ loan.client_name }}</td>
+                                <td class="fw-semibold text-danger">UGX {{ "{:,.2f}".format(loan.balance) }}</td>
+                                <td class="text-danger">UGX {{ "{:,.2f}".format(loan.fine_amount or 0) }}</td>
+                                <td class="text-muted">{{ loan.created_at[:10] }}</td>
+                                <td><a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            {% if stats.defaulted_loans == 0 %}
+                            <tr><td colspan="6" class="text-center text-muted py-4">No defaulted loans</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Paid Loans -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="paid-loans" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-check-circle me-2 text-success"></i>Paid Loans</span>
+                <a href="{{ url_for('manage_loans') }}?status=paid" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Loan #</th>
+                                <th>Client</th>
+                                <th>Amount</th>
+                                <th>Paid On</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in stats.recent_loans %}
+                            {% if loan.status == 'paid' %}
+                            <tr>
+                                <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                                <td>{{ loan.client_name }}</td>
+                                <td>UGX {{ "{:,.2f}".format(loan.principal) }}</td>
+                                <td class="text-muted">{{ loan.created_at[:10] }}</td>
+                                <td><a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            <tr><td colspan="5" class="text-center text-muted py-4">No paid loans yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Overdue Loans -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="overdue-loans" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <span><i class="bi bi-calendar-x me-2 text-danger"></i>Overdue Loans</span>
+            </div>
+            <div class="card-body p-0">
+                {% for loan in stats.overdue_loans %}
+                <div class="p-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-semibold">{{ loan.client_name }}</div>
+                            <div class="text-muted" style="font-size:12px"><code>{{ loan.loan_number }}</code> &middot; Next: {{ loan.next_payment_date }}</div>
+                            {% if loan.fine_active %}
+                            <div class="text-danger" style="font-size:12px"><i class="bi bi-exclamation-circle"></i> Fine: UGX {{ "{:,.2f}".format(loan.fine_amount) }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-semibold text-danger">UGX {{ "{:,.2f}".format(loan.balance) }}</div>
+                            <div class="mt-1">
+                                <a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                <form action="{{ url_for('send_reminder', loan_id=loan.id) }}" method="POST" class="d-inline">
+                                    <button class="btn btn-sm btn-outline-warning">Remind</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">No overdue loans</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Disbursed -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="disbursed-loans" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-arrow-up-right me-2 text-gold"></i>Total Disbursed</span>
+                <span class="badge" style="background:#b8860b;color:#fff">UGX {{ "{:,.2f}".format(stats.total_disbursed) }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Loan #</th><th>Client</th><th>Principal</th><th>Status</th><th>Date</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in stats.recent_loans %}
+                            {% if loan.status in ('active', 'paid') %}
+                            <tr>
+                                <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                                <td>{{ loan.client_name }}</td>
+                                <td>UGX {{ "{:,.2f}".format(loan.principal) }}</td>
+                                <td><span class="badge-status badge-{{ loan.status }}">{{ loan.status.title() }}</span></td>
+                                <td class="text-muted">{{ loan.created_at[:10] }}</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Collected -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="collected-loans" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-arrow-down-right me-2 text-success"></i>Total Collected</span>
+                <span class="badge bg-success">UGX {{ "{:,.2f}".format(stats.total_collected) }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Loan #</th><th>Client</th><th>Collected</th><th>Status</th><th>Date</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in stats.recent_loans %}
+                            {% if loan.amount_paid > 0 %}
+                            <tr>
+                                <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                                <td>{{ loan.client_name }}</td>
+                                <td class="text-success fw-semibold">UGX {{ "{:,.2f}".format(loan.amount_paid) }}</td>
+                                <td><span class="badge-status badge-{{ loan.status }}">{{ loan.status.title() }}</span></td>
+                                <td class="text-muted">{{ loan.created_at[:10] }}</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Outstanding -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="outstanding-loans" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-hourglass me-2 text-warning"></i>Outstanding Balance</span>
+                <span class="badge bg-warning text-dark">UGX {{ "{:,.2f}".format(stats.total_outstanding) }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Loan #</th><th>Client</th><th>Balance</th><th>Schedule</th><th>Next Payment</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in stats.recent_loans %}
+                            {% if loan.status == 'active' and loan.balance > 0 %}
+                            <tr>
+                                <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                                <td>{{ loan.client_name }}</td>
+                                <td class="text-danger fw-semibold">UGX {{ "{:,.2f}".format(loan.balance) }}</td>
+                                <td><span class="badge bg-light text-dark">{{ loan.payment_schedule.title() }}</span></td>
+                                <td class="text-muted">{{ loan.created_at[:10] }}</td>
+                                <td><a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fines -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="fines-section" hidden>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-receipt me-2 text-danger"></i>Active Fines</span>
+                <span class="badge bg-danger">UGX {{ "{:,.2f}".format(stats.total_fines) }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Loan #</th><th>Client</th><th>Fine Amount</th><th>Defaults</th><th>Status</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in stats.recent_loans %}
+                            {% if loan.fine_amount and loan.fine_amount > 0 %}
+                            <tr>
+                                <td><code class="fw-semibold">{{ loan.loan_number }}</code></td>
+                                <td>{{ loan.client_name }}</td>
+                                <td class="text-danger fw-semibold">UGX {{ "{:,.2f}".format(loan.fine_amount) }}</td>
+                                <td>{{ loan.default_count or 0 }}</td>
+                                <td><span class="badge {% if loan.fine_active %}bg-danger{% else %}bg-secondary{% endif %}">{{ 'Active' if loan.fine_active else 'Paused' }}</span></td>
+                                <td><a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            <tr><td colspan="6" class="text-center text-muted py-4">No fines recorded yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Local-time greeting ──
+(function() {
+    const el = document.getElementById('greetingText');
+    const name = el.dataset.name;
+    const hour = new Date().getHours();
+    let timeGreeting = 'Good evening';
+    if (hour < 12) timeGreeting = 'Good morning';
+    else if (hour < 18) timeGreeting = 'Good afternoon';
+    el.textContent = timeGreeting + ', ' + name + '!';
+})();
+
+function toggleSection(sectionId, cardEl) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    const isHidden = section.hasAttribute('hidden');
+    if (isHidden) {
+        section.removeAttribute('hidden');
+        if (cardEl) cardEl.style.borderColor = 'var(--gold)';
+    } else {
+        section.setAttribute('hidden', '');
+        if (cardEl) cardEl.style.borderColor = '';
+    }
+    const btn = document.querySelector('.toggle-btn[data-target="' + sectionId + '"]');
+    if (btn) btn.classList.toggle('active');
+}
+
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const section = document.getElementById(this.dataset.target);
+        if (!section) return;
+        const isHidden = section.hasAttribute('hidden');
+        if (isHidden) {
+            section.removeAttribute('hidden');
+            this.classList.add('active');
+        } else {
+            section.setAttribute('hidden', '');
+            this.classList.remove('active');
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ user.full_name }} - LendFlow{% endblock %}
+{% block page_title %}{{ user.full_name }}{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Profile Card -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if user.profile_picture %}
+                <img src="{{ url_for('uploaded_file', filename=user.profile_picture) }}" alt="{{ user.full_name }}" class="rounded-circle mb-3" style="width:100px;height:100px;object-fit:cover;">
+                {% else %}
+                <div style="width:80px;height:80px;background:#b8860b;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:32px;font-weight:700;margin:0 auto 16px">{{ user.full_name[0] }}</div>
+                {% endif %}
+                <h5 class="mb-1">{{ user.full_name }}</h5>
+                <p class="text-muted mb-3">@{{ user.username }}</p>
+
+                <!-- Photo Upload -->
+                <form action="{{ url_for('upload_photo', user_id=user.id) }}" method="POST" enctype="multipart/form-data" class="mb-3">
+                    <div class="input-group input-group-sm">
+                        <input type="file" name="profile_picture" class="form-control" accept="image/png,image/jpeg,image/gif">
+                        <button class="btn btn-outline-primary" type="submit"><i class="bi bi-upload me-1"></i>Upload</button>
+                    </div>
+                    <div class="form-text">PNG, JPG, or GIF (max 5MB)</div>
+                </form>
+                <div class="text-start">
+                    <table class="table table-borderless small mb-0">
+                        <tr><td class="text-muted">Phone</td><td>{{ user.phone or 'N/A' }}</td></tr>
+                        <tr><td class="text-muted">Email</td><td>{{ user.email }}</td></tr>
+                        <tr><td class="text-muted">ID Number</td><td>{{ user.id_number or 'N/A' }}</td></tr>
+                        <tr><td class="text-muted">Address</td><td>{{ user.address or 'N/A' }}</td></tr>
+                        <tr><td class="text-muted">Joined</td><td>{{ user.created_at[:10] }}</td></tr>
+                    </table>
+                </div>
+                <a href="{{ url_for('edit_client', client_id=user.id) }}" class="btn btn-outline-primary btn-sm mt-3"><i class="bi bi-pencil me-1"></i>Edit Profile</a>
+            </div>
+        </div>
+
+        {% if profile %}
+        <div class="card mt-3">
+            <div class="card-header"><h6 class="mb-0 fw-semibold">Financial Profile</h6></div>
+            <div class="card-body">
+                <table class="table table-borderless small mb-0">
+                    <tr><td class="text-muted">Employer</td><td>{{ profile.employer or 'N/A' }}</td></tr>
+                    <tr><td class="text-muted">Monthly Income</td><td>UGX {{ "{:,.2f}".format(profile.monthly_income or 0) }}</td></tr>
+                    <tr><td class="text-muted">Credit Score</td><td>{{ profile.credit_score or 'N/A' }}</td></tr>
+                    <tr><td class="text-muted">Bank</td><td>{{ profile.bank_name or 'N/A' }}</td></tr>
+                    <tr><td class="text-muted">Account</td><td>{{ profile.bank_account or 'N/A' }}</td></tr>
+                    <tr><td class="text-muted">Mobile Money</td><td>{{ profile.mpesa_number or 'N/A' }}</td></tr>
+                    <tr><td class="text-muted">Next of Kin</td><td>{{ profile.next_of_kin or 'N/A' }}</td></tr>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Loan History -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">Loan History</h6>
+                <a href="{{ url_for('new_loan') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus me-1"></i>New Loan</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>ID</th><th>Amount</th><th>Balance</th><th>Due Date</th><th>Status</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for loan in loans %}
+                            <tr>
+                                <td><strong>#{{ loan.id }}</strong></td>
+                                <td>UGX {{ "{:,.2f}".format(loan.principal) }}</td>
+                                <td class="fw-semibold">UGX {{ "{:,.2f}".format(loan.balance) }}</td>
+                                <td>{{ loan.due_date }}</td>
+                                <td><span class="badge-status badge-{{ loan.status }}">{{ loan.status.title() }}</span></td>
+                                <td><a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="6" class="text-center text-muted py-4">No loans yet</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

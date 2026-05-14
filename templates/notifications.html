@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Notifications - LendFlow{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="btn-group">
+        <a href="{{ url_for('notifications') }}" class="btn btn-sm btn-outline-secondary {% if not request.args.get('unread') %}active{% endif %}">All</a>
+        <a href="{{ url_for('notifications', unread=1) }}" class="btn btn-sm btn-outline-primary {% if request.args.get('unread') %}active{% endif %}">Unread</a>
+    </div>
+    <form action="{{ url_for('read_all_notifications') }}" method="POST">
+        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-check-all me-1"></i>Mark All Read</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {% for notif in notifications %}
+        {% set entity_url = none %}
+        {% if notif.entity_type == 'loan' and notif.entity_id %}
+        {% set entity_url = url_for('loan_detail', loan_id=notif.entity_id) %}
+        {% endif %}
+        <a href="{{ entity_url or '#' }}" class="text-decoration-none text-reset {% if not entity_url %}cursor-default{% endif %}" {% if entity_url %}onclick="fetch('{{ url_for('read_notification', notif_id=notif.id) }}')"{% endif %}>
+        <div class="notification-item {% if not notif.is_read %}unread{% endif %}">
+            <div class="notif-icon" style="background:{% if notif.type == 'success' %}#d1fae5;color:#059669{% elif notif.type == 'warning' %}#fef3c7;color:#d97706{% elif notif.type == 'alert' %}#fef9e7;color:#b8860b{% elif notif.type == 'danger' %}#fee2e2;color:#dc2626{% else %}#f1f5f9;color:#64748b{% endif %}">
+                <i class="bi bi-{% if notif.type == 'success' %}check-circle{% elif notif.type == 'warning' %}exclamation-triangle{% elif notif.type == 'alert' %}bell{% elif notif.type == 'info' %}info-circle{% else %}bell{% endif %}"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="d-flex justify-content-between">
+                    <strong>{{ notif.title }}</strong>
+                    <small class="text-muted">{{ notif.created_at[:19].replace('T', ' ') }}</small>
+                </div>
+                <p class="mb-1 text-muted small">{{ notif.message }}</p>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-light text-dark">{{ notif.channel }}</span>
+                    {% if not notif.is_read %}
+                    <span class="small text-gold">Mark read</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        </a>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-bell-slash fs-1 d-block mb-2"></i>
+            No notifications
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

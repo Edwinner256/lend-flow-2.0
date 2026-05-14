@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Repay Loan - LendFlow{% endblock %}
+{% block page_title %}Record Payment{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-muted small">Loan #{{ loan.id }}</div>
+                        <div class="fw-semibold">{{ loan.client_name }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small">Outstanding Balance</div>
+                        <div class="fs-4 fw-bold text-danger">UGX {{ "{:,.2f}".format(loan.balance) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h6 class="mb-0 fw-semibold">Payment Details</h6></div>
+            <div class="card-body">
+                <form method="POST">
+                    <!-- Fine alert -->
+                    {% if loan.fine_active and loan.fine_amount > 0 %}
+                    <div class="alert alert-danger py-2 px-3 mb-3 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-exclamation-triangle me-1"></i> Fine outstanding: <strong>UGX {{ "{:,.0f}".format(loan.fine_amount) }}</strong></span>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Payment Type</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="payment_type" id="typePrincipal" value="principal" checked>
+                                <label class="form-check-label fw-semibold" for="typePrincipal">Loan Payment</label>
+                                <small class="d-block text-muted" style="font-size:11px">Pays down the loan balance</small>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="payment_type" id="typeFine" value="fine" {% if loan.fine_active and loan.fine_amount > 0 %}{% else %}disabled{% endif %}>
+                                <label class="form-check-label fw-semibold" for="typeFine">Fine Payment</label>
+                                <small class="d-block text-muted" style="font-size:11px">Pays off late fees only</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Payment Amount (UGX)</label>
+                        <input type="number" name="amount" id="amountInput" class="form-control form-control-lg" step="0.01" max="{{ loan.balance }}" required>
+                        <small class="text-muted" id="maxHint">Maximum: UGX {{ "{:,.2f}".format(loan.balance) }}</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Payment Method</label>
+                        <select name="payment_method" class="form-select" required>
+                            <option value="">Select method...</option>
+                            <option value="cash">Cash</option>
+                            <option value="mtn">MTN Mobile Money</option>
+                            <option value="airtel">Airtel Money</option>
+                            <option value="bank">Bank Transfer</option>
+                            <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Reference / Transaction ID</label>
+                        <div class="input-group">
+                            <input type="text" name="reference" id="refInput" class="form-control" placeholder="Auto-generated" readonly>
+                            <button type="button" class="btn btn-outline-secondary" onclick="generateRef()" title="Generate new reference">
+                                <i class="bi bi-arrow-repeat"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success flex-fill"><i class="bi bi-check-lg me-1"></i>Record Payment</button>
+                        <a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function generateRef() {
+    const now = new Date();
+    const ds = now.getFullYear() +
+        String(now.getMonth()+1).padStart(2,'0') +
+        String(now.getDate()).padStart(2,'0');
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    document.getElementById('refInput').value = 'PAY-' + ds + '-' + rand;
+}
+generateRef();
+
+// ── Payment type toggle ──
+const amtInput = document.getElementById('amountInput');
+const maxHint = document.getElementById('maxHint');
+const loanBalance = {{ loan.balance }};
+const loanFine = {{ loan.fine_amount }};
+
+document.querySelectorAll('input[name="payment_type"]').forEach(r => {
+    r.addEventListener('change', function() {
+        const isFine = this.value === 'fine';
+        const maxVal = isFine ? loanFine : loanBalance;
+        amtInput.max = maxVal;
+        if (parseFloat(amtInput.value) > maxVal) amtInput.value = maxVal;
+        maxHint.textContent = 'Maximum: UGX ' + Number(maxVal).toLocaleString('en', {minimumFractionDigits:0, maximumFractionDigits:0});
+    });
+});
+</script>
+{% endblock %}

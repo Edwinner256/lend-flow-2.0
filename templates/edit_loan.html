@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Edit Loan {{ loan.loan_number }} - LendFlow{% endblock %}
+{% block page_title %}Edit Loan {{ loan.loan_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">Edit Loan Details</h6>
+                <a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Loan
+                </a>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <div class="row g-3">
+                        <!-- Client Info (read-only) -->
+                        <div class="col-12">
+                            <div class="p-3 bg-light rounded">
+                                <div class="d-flex align-items-center gap-3">
+                                    {% if loan.client_photo %}
+                                    <img src="{{ url_for('uploaded_file', filename=loan.client_photo) }}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover">
+                                    {% else %}
+                                    <div style="width:40px;height:40px;background:#b8860b;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:600">{{ loan.client_name[0] }}</div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-semibold">{{ loan.client_name }}</div>
+                                        <div class="text-muted small">{{ loan.client_phone or 'No phone' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Principal -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Principal (UGX)</label>
+                            <input type="number" name="principal" class="form-control" value="{{ loan.principal }}" step="0.01" required>
+                        </div>
+
+                        <!-- Interest Rate -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Interest Rate (%)</label>
+                            <input type="number" name="interest_rate" class="form-control" value="{{ loan.interest_rate }}" step="0.1" required>
+                        </div>
+
+                        <!-- Interest Type -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Interest Type</label>
+                            <select name="interest_type" class="form-select">
+                                <option value="flat" {% if loan.interest_type == 'flat' %}selected{% endif %}>Flat</option>
+                                <option value="reducing" {% if loan.interest_type == 'reducing' %}selected{% endif %}>Reducing Balance</option>
+                            </select>
+                        </div>
+
+                        <!-- Payment Schedule -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Payment Schedule</label>
+                            <select name="payment_schedule" class="form-select">
+                                <option value="daily" {% if loan.payment_schedule == 'daily' %}selected{% endif %}>Daily</option>
+                                <option value="weekly" {% if loan.payment_schedule == 'weekly' %}selected{% endif %}>Weekly</option>
+                                <option value="monthly" {% if loan.payment_schedule == 'monthly' %}selected{% endif %}>Monthly</option>
+                            </select>
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Duration (Months)</label>
+                            <input type="number" name="duration_months" class="form-control" value="{{ (loan.due_date and loan.start_date) and ((loan.due_date[:4]|int - loan.start_date[:4]|int) * 12 + (loan.due_date[5:7]|int - loan.start_date[5:7]|int)) or 1 }}" min="1" required>
+                        </div>
+
+                        <!-- Processing Fee -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Processing Fee (UGX)</label>
+                            <input type="number" name="processing_fee" class="form-control" value="{{ loan.processing_fee or 0 }}" step="0.01">
+                        </div>
+
+                        <!-- Status -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="pending" {% if loan.status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="approved" {% if loan.status == 'approved' %}selected{% endif %}>Approved</option>
+                                <option value="active" {% if loan.status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="paid" {% if loan.status == 'paid' %}selected{% endif %}>Paid</option>
+                                <option value="defaulted" {% if loan.status == 'defaulted' %}selected{% endif %}>Defaulted</option>
+                                <option value="rejected" {% if loan.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                            </select>
+                        </div>
+
+                        <!-- Purpose -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Purpose</label>
+                            <input type="text" name="purpose" class="form-control" value="{{ loan.purpose or '' }}">
+                        </div>
+
+                        <!-- Guarantor -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Guarantor Name</label>
+                            <input type="text" name="guarantor_name" class="form-control" value="{{ loan.guarantor_name or '' }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Guarantor Phone</label>
+                            <input type="text" name="guarantor_phone" class="form-control" value="{{ loan.guarantor_phone or '' }}">
+                        </div>
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Save Changes
+                        </button>
+                        <a href="{{ url_for('loan_detail', loan_id=loan.id) }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

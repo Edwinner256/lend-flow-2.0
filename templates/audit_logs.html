@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Vaulta - Audit Logs{% endblock %}
+{% block page_title %}Audit Logs{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-journal-text me-2 text-gold"></i>System Activity Log</span>
+        <small class="text-muted">{{ logs|length }} record(s)</small>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Entity</th>
+                        <th>Entity ID</th>
+                        <th>Details</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td class="text-muted">{{ log.id }}</td>
+                        <td>{{ log.user_name or '—' }}</td>
+                        <td>
+                            {% if log.action == 'create_user' or log.action == 'create_loan' %}
+                            <span class="badge-status badge-active">{{ log.action|replace('_', ' ')|title }}</span>
+                            {% elif log.action == 'delete_user' or log.action == 'delete_repayment' %}
+                            <span class="badge-status badge-defaulted">{{ log.action|replace('_', ' ')|title }}</span>
+                            {% elif log.action == 'update_user' or log.action == 'update_repayment' or log.action == 'edit_loan' %}
+                            <span class="badge-status badge-pending">{{ log.action|replace('_', ' ')|title }}</span>
+                            {% elif log.action == 'approve_loan' %}
+                            <span class="badge-status badge-active">Approve Loan</span>
+                            {% elif log.action == 'reject_loan' %}
+                            <span class="badge-status badge-rejected">Reject Loan</span>
+                            {% elif log.action == 'repayment' %}
+                            <span class="badge-status badge-active">Repayment</span>
+                            {% elif log.action == 'change_password' %}
+                            <span class="badge-status badge-pending">Change Password</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ log.action }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ log.entity or '—' }}</td>
+                        <td class="text-muted">{{ log.entity_id or '—' }}</td>
+                        <td class="text-muted" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ log.details or '' }}">{{ log.details or '—' }}</td>
+                        <td class="text-muted">{{ log.created_at[:16] if log.created_at else '—' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-journal-text" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+                            No audit log entries yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,636 @@
+{% extends "base.html" %}
+{% block title %}Create User - Vaulta Cash{% endblock %}
+{% block page_title %}Create New User{% endblock %}
+
+{% block content %}
+<style>
+    /* ── Page background treatment ── */
+    .register-page {
+        position: relative;
+    }
+    .register-page::before {
+        content: '';
+        position: absolute;
+        top: -80px;
+        right: -80px;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(139,105,20,0.06) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .register-page::after {
+        content: '';
+        position: absolute;
+        bottom: -60px;
+        left: -60px;
+        width: 250px;
+        height: 250px;
+        background: radial-gradient(circle, rgba(26,60,42,0.05) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* ── Main card ── */
+    .register-card {
+        max-width: 740px;
+        margin: 0 auto;
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.08);
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* ── Header with decorative accent bar ── */
+    .register-header {
+        background: linear-gradient(135deg, var(--dark-green) 0%, #0d261a 60%, var(--dark-green-light) 100%);
+        padding: 28px 32px 24px;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+    }
+    .register-header::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--dark-gold), var(--dark-gold-light), var(--dark-gold));
+    }
+    .register-header .header-icon {
+        width: 52px; height: 52px;
+        background: rgba(255,255,255,0.12);
+        border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px;
+        backdrop-filter: blur(4px);
+        flex-shrink: 0;
+    }
+    .register-header h5 {
+        margin: 0; font-weight: 700; font-size: 18px; letter-spacing: -0.3px;
+    }
+    .register-header p {
+        margin: 4px 0 0; font-size: 13px; opacity: 0.75;
+    }
+    .register-header .deco-ring {
+        position: absolute;
+        top: -40px; right: -20px;
+        width: 120px; height: 120px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.04);
+    }
+    .register-header .deco-ring-2 {
+        position: absolute;
+        top: -10px; right: 40px;
+        width: 70px; height: 70px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.03);
+    }
+
+    /* ── Body ── */
+    .register-body { padding: 32px; }
+
+    /* ── Section headers ── */
+    .section-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+    }
+    .section-head .step-num {
+        width: 26px; height: 26px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, var(--dark-gold), var(--dark-gold-light));
+        color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .section-head .step-label {
+        font-size: 13px; font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.2px;
+    }
+    .section-head .step-count {
+        margin-left: auto;
+        font-size: 11px; color: var(--text-muted);
+    }
+
+    /* ── Input groups with icons ── */
+    .input-icon-wrap {
+        position: relative;
+    }
+    .input-icon-wrap .input-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-size: 15px;
+        pointer-events: none;
+        z-index: 3;
+        transition: color 0.2s;
+    }
+    .input-icon-wrap .form-control,
+    .input-icon-wrap .form-select {
+        padding-left: 42px;
+    }
+    .input-icon-wrap:focus-within .input-icon {
+        color: var(--dark-gold);
+    }
+
+    .register-body .form-label {
+        font-size: 12px; font-weight: 600; color: var(--text-secondary);
+        text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+    }
+    .register-body .form-control,
+    .register-body .form-select {
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        padding: 11px 14px;
+        font-size: 13px;
+        transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+        background: #fafbfa;
+    }
+    .register-body .form-control:focus,
+    .register-body .form-select:focus {
+        border-color: var(--dark-gold);
+        box-shadow: 0 0 0 4px rgba(139,105,20,0.12);
+        background: #fff;
+    }
+    .register-body .form-control::placeholder {
+        color: #b8c4bc;
+        font-size: 12px;
+    }
+
+    /* ── Password eye button ── */
+    .pw-toggle {
+        border: 2px solid var(--border);
+        border-left: none;
+        border-radius: 0 10px 10px 0;
+        background: #fafbfa;
+        color: var(--text-muted);
+        transition: color 0.2s, background 0.2s;
+    }
+    .pw-toggle:hover {
+        background: var(--dark-gold-bg);
+        color: var(--dark-gold);
+    }
+
+    /* ── Password strength ── */
+    .pw-strength-track {
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border);
+        margin-top: 8px;
+        overflow: hidden;
+    }
+    .pw-strength-bar {
+        height: 100%;
+        width: 0;
+        border-radius: 2px;
+        transition: width 0.3s ease, background 0.3s ease;
+    }
+
+    /* ── Role cards ── */
+    .role-options {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    .role-option {
+        position: relative;
+    }
+    .role-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .role-option label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 16px 12px;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+        background: #fafbfa;
+    }
+    .role-option label .role-icon {
+        width: 40px; height: 40px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px;
+        transition: all 0.2s;
+    }
+    .role-option label .role-name {
+        font-size: 12px; font-weight: 600; color: var(--text);
+    }
+    .role-option label .role-desc {
+        font-size: 10px; color: var(--text-muted); line-height: 1.3;
+    }
+
+    .role-option input:checked + label {
+        border-color: var(--dark-gold);
+        background: var(--dark-gold-bg);
+        box-shadow: 0 0 0 3px rgba(139,105,20,0.12);
+    }
+    .role-option input:checked + label .role-icon {
+        background: var(--dark-gold);
+        color: #fff;
+    }
+    .role-option.client label .role-icon { background: #e8f5ee; color: var(--dark-green); }
+    .role-option.loan_officer label .role-icon { background: #fdf6e3; color: var(--dark-gold); }
+    .role-option.admin label .role-icon { background: #fef2f2; color: #991b1b; }
+
+    /* ── Profile picture upload ── */
+    .upload-avatar {
+        border: 2px dashed var(--border);
+        border-radius: 14px;
+        padding: 16px;
+        transition: border-color 0.25s, background 0.25s;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fafbfa;
+    }
+    .upload-avatar:hover, .upload-avatar.drag-over {
+        border-color: var(--dark-gold);
+        background: var(--dark-gold-bg);
+    }
+    .upload-avatar .avatar-ring {
+        width: 88px; height: 88px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--dark-green-bg);
+        border: 3px dashed var(--border);
+        transition: all 0.25s;
+        overflow: hidden;
+    }
+    .upload-avatar:hover .avatar-ring {
+        border-color: var(--dark-gold);
+        background: var(--dark-gold-bg);
+    }
+    .upload-avatar .avatar-ring img {
+        width: 100%; height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    /* ── Buttons ── */
+    .btn-create {
+        background: linear-gradient(135deg, var(--dark-gold) 0%, var(--dark-gold-light) 100%);
+        border: none; border-radius: 12px; padding: 14px 32px;
+        font-size: 14px; font-weight: 600; color: #fff;
+        transition: all 0.2s;
+        box-shadow: 0 4px 14px rgba(139,105,20,0.25);
+    }
+    .btn-create:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(139,105,20,0.35);
+        color: #fff;
+    }
+    .btn-create:active { transform: translateY(0); }
+    .btn-cancel {
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 28px;
+        font-size: 14px; font-weight: 500;
+        color: var(--text-secondary);
+        background: transparent;
+        transition: all 0.2s;
+    }
+    .btn-cancel:hover {
+        border-color: var(--dark-green);
+        color: var(--dark-green);
+        background: var(--dark-green-bg);
+    }
+
+    /* ── Animations ── */
+    .section-animate {
+        animation: slideUp 0.4s ease both;
+    }
+    .section-animate:nth-child(1) { animation-delay: 0s; }
+    .section-animate:nth-child(2) { animation-delay: 0.08s; }
+    .section-animate:nth-child(3) { animation-delay: 0.16s; }
+    .section-animate:nth-child(4) { animation-delay: 0.24s; }
+
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Flash message override inside card ── */
+    .register-body .alert {
+        margin-bottom: 20px;
+        border-radius: 10px;
+        font-size: 13px;
+    }
+</style>
+
+<div class="register-page">
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-8">
+            <div class="card register-card">
+                <!-- Header -->
+                <div class="register-header">
+                    <div class="deco-ring"></div>
+                    <div class="deco-ring-2"></div>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="header-icon"><i class="bi bi-person-plus-fill"></i></div>
+                        <div>
+                            <h5>Create New User</h5>
+                            <p>Register a new client, loan officer, or administrator</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div class="register-body">
+                    <form method="POST" enctype="multipart/form-data">
+
+                        <!-- ─── STEP 1: ACCOUNT INFO ─── -->
+                        <div class="section-animate">
+                            <div class="section-head">
+                                <span class="step-num">1</span>
+                                <span class="step-label">Account Information</span>
+                                <span class="step-count">Login credentials &amp; role</span>
+                            </div>
+
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">Username</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="bi bi-person input-icon"></i>
+                                        <input type="text" name="username" id="reg-username" class="form-control" placeholder="Choose a unique username" required autofocus>
+                                    </div>
+                                    <small id="username-helper" class="text-muted" style="font-size:11px;display:none">Auto-generated for clients</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Email</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="bi bi-envelope input-icon"></i>
+                                        <input type="email" name="email" id="reg-email" class="form-control" placeholder="email@example.com" required>
+                                    </div>
+                                    <small id="email-helper" class="text-muted" style="font-size:11px;display:none">Auto-generated for clients</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Password</label>
+                                    <div class="input-group">
+                                        <div class="input-icon-wrap flex-grow-1" style="position:relative">
+                                            <i class="bi bi-lock input-icon"></i>
+                                            <input type="password" name="password" id="reg-password" class="form-control" placeholder="Create a strong password" style="padding-left:42px" required>
+                                        </div>
+                                        <button type="button" class="btn pw-toggle toggle-pw" data-target="reg-password"><i class="bi bi-eye"></i></button>
+                                    </div>
+                                    <div class="pw-strength-track"><div class="pw-strength-bar" id="pw-strength-bar"></div></div>
+                                    <small id="pw-strength-text" style="font-size:11px;min-height:16px;display:block"></small>
+                                    <small id="password-helper" class="text-muted" style="font-size:11px;display:none">Auto-generated for clients</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Role</label>
+                                    <div class="role-options">
+                                        <div class="role-option client">
+                                            <input type="radio" name="role" value="client" id="role-client" checked>
+                                            <label for="role-client">
+                                                <div class="role-icon"><i class="bi bi-person"></i></div>
+                                                <span class="role-name">Client</span>
+                                                <span class="role-desc">Borrower</span>
+                                            </label>
+                                        </div>
+                                        <div class="role-option loan_officer">
+                                            <input type="radio" name="role" value="loan_officer" id="role-officer">
+                                            <label for="role-officer">
+                                                <div class="role-icon"><i class="bi bi-briefcase"></i></div>
+                                                <span class="role-name">Officer</span>
+                                                <span class="role-desc">Manages loans</span>
+                                            </label>
+                                        </div>
+                                        <div class="role-option admin">
+                                            <input type="radio" name="role" value="admin" id="role-admin">
+                                            <label for="role-admin">
+                                                <div class="role-icon"><i class="bi bi-shield"></i></div>
+                                                <span class="role-name">Admin</span>
+                                                <span class="role-desc">Full access</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ─── STEP 2: PERSONAL INFO ─── -->
+                        <div class="section-animate">
+                            <div class="section-head">
+                                <span class="step-num">2</span>
+                                <span class="step-label">Personal Information</span>
+                                <span class="step-count">Identity &amp; contact details</span>
+                            </div>
+
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">Full Name</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="bi bi-card-text input-icon"></i>
+                                        <input type="text" name="full_name" class="form-control" placeholder="Enter full name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Phone</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="bi bi-telephone input-icon"></i>
+                                        <input type="text" name="phone" class="form-control" placeholder="+256 7XX XXX">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">ID Number</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="bi bi-credit-card input-icon"></i>
+                                        <input type="text" name="id_number" class="form-control" placeholder="National ID">
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Address</label>
+                                    <div class="input-icon-wrap">
+                                        <i class="bi bi-geo-alt input-icon"></i>
+                                        <input type="text" name="address" class="form-control" placeholder="Physical or postal address">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ─── STEP 3: PROFILE PICTURE ─── -->
+                        <div class="section-animate">
+                            <div class="section-head">
+                                <span class="step-num">3</span>
+                                <span class="step-label">Profile Picture</span>
+                                <span class="step-count">Optional — PNG, JPG or GIF</span>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="upload-avatar" for="profile_picture">
+                                    <input type="file" name="profile_picture" id="profile_picture" accept="image/png,image/jpeg,image/gif" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden">
+                                    <div class="d-flex align-items-center gap-4 w-100 justify-content-center">
+                                        <!-- Placeholder state -->
+                                        <div id="avatar-placeholder" class="d-flex flex-column align-items-center gap-2">
+                                            <div class="avatar-ring">
+                                                <i class="bi bi-camera" style="font-size:28px;color:var(--dark-green);opacity:0.5"></i>
+                                            </div>
+                                            <div class="text-center">
+                                                <p class="mb-0 fw-semibold" style="color:var(--text);font-size:13px">Click to upload photo</p>
+                                                <small class="text-muted" style="font-size:11px">or drag &amp; drop</small>
+                                            </div>
+                                        </div>
+                                        <!-- Preview state -->
+                                        <div id="avatar-preview" class="d-flex flex-column align-items-center gap-2" style="display:none">
+                                            <div class="avatar-ring">
+                                                <img id="avatar-img" src="" alt="Preview">
+                                            </div>
+                                            <div class="text-center">
+                                                <span id="avatar-name" class="small fw-semibold" style="color:var(--dark-green);font-size:12px"></span>
+                                                <button type="button" id="remove-avatar" class="btn btn-sm btn-outline-danger ms-2" style="font-size:11px;border-radius:8px"><i class="bi bi-trash me-1"></i>Remove</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- ─── ACTIONS ─── -->
+                        <div class="d-flex gap-3 pt-2 border-top" style="border-color:var(--border) !important">
+                            <button type="submit" class="btn btn-create">
+                                <i class="bi bi-person-plus me-1"></i>Create User
+                            </button>
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-cancel">Cancel</a>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Role-based field disabling ──
+const CRED_FIELDS = ['reg-username', 'reg-email', 'reg-password'];
+const CRED_HELPERS = ['username-helper', 'email-helper', 'password-helper'];
+
+function toggleCredFields(isClient) {
+    CRED_FIELDS.forEach((id, i) => {
+        const input = document.getElementById(id);
+        const helper = document.getElementById(CRED_HELPERS[i]);
+        if (isClient) {
+            input.disabled = true;
+            input.required = false;
+            input.value = '';
+            input.placeholder = 'Auto-generated';
+            if (helper) helper.style.display = 'block';
+        } else {
+            input.disabled = false;
+            input.required = true;
+            input.placeholder = id === 'reg-email' ? 'email@example.com' :
+                                id === 'reg-password' ? 'Create a strong password' :
+                                'Choose a unique username';
+            if (helper) helper.style.display = 'none';
+        }
+    });
+}
+
+document.querySelectorAll('input[name="role"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        toggleCredFields(this.value === 'client');
+    });
+});
+
+// Run on page load (client is default checked)
+toggleCredFields(true);
+
+// ── Password visibility toggle ──
+document.querySelectorAll('.toggle-pw').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'bi bi-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'bi bi-eye';
+        }
+    });
+});
+
+// ── Password strength meter ──
+const pwInput = document.getElementById('reg-password');
+const pwBar = document.getElementById('pw-strength-bar');
+const pwText = document.getElementById('pw-strength-text');
+
+pwInput.addEventListener('input', () => {
+    const val = pwInput.value;
+    let score = 0;
+    if (val.length >= 8) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[a-z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+
+    const levels = [
+        { width: '0%', color: 'var(--border)', text: '' },
+        { width: '20%', color: '#dc2626', text: 'Very weak' },
+        { width: '40%', color: '#f59e0b', text: 'Weak' },
+        { width: '60%', color: '#f59e0b', text: 'Fair' },
+        { width: '80%', color: '#16a34a', text: 'Strong' },
+        { width: '100%', color: '#16a34a', text: 'Very strong' }
+    ];
+
+    const level = levels[score];
+    pwBar.style.width = level.width;
+    pwBar.style.background = level.color;
+    pwText.textContent = level.text;
+    pwText.style.color = level.color;
+});
+
+// ── Profile picture upload ──
+const avatarInput = document.getElementById('profile_picture');
+const avatarPlaceholder = document.getElementById('avatar-placeholder');
+const avatarPreview = document.getElementById('avatar-preview');
+const avatarImg = document.getElementById('avatar-img');
+const avatarName = document.getElementById('avatar-name');
+const removeAvatar = document.getElementById('remove-avatar');
+
+avatarInput.addEventListener('change', () => {
+    if (avatarInput.files.length) handleAvatar(avatarInput.files[0]);
+});
+
+removeAvatar.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    avatarInput.value = '';
+    avatarPlaceholder.style.display = '';
+    avatarPreview.style.display = 'none';
+});
+
+function handleAvatar(file) {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        avatarImg.src = e.target.result;
+        avatarName.textContent = file.name;
+        avatarPlaceholder.style.display = 'none';
+        avatarPreview.style.display = '';
+    };
+    reader.readAsDataURL(file);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,829 @@
+{% extends "base.html" %}
+{% block title %}Loan {{ loan.loan_number }} - Vaulta{% endblock %}
+{% block page_title %}{% endblock %}
+
+{% block head_extra %}
+<style>
+/* ── Loan-specific overrides ── */
+.loan-header-card {
+    background: linear-gradient(135deg, #1a3c2a 0%, #0f281b 50%, #1a3c2a 100%);
+    border-radius: 12px;
+    padding: 32px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    border: none;
+    margin-bottom: 24px;
+}
+.loan-header-card::before {
+    content: '';
+    position: absolute;
+    top: -60%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(139,105,20,0.12) 0%, transparent 70%);
+    pointer-events: none;
+}
+.loan-header-card::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    left: -10%;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
+    pointer-events: none;
+}
+.loan-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+}
+.loan-header-top .loan-number {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+.loan-header-top .loan-number small {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+    display: block;
+    margin-top: 2px;
+    letter-spacing: 0;
+}
+.loan-badge-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.loan-badge-status {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.loan-badge-status.pending { background: rgba(251,191,36,0.2); color: #fbbf24; }
+.loan-badge-status.active { background: rgba(22,163,74,0.2); color: #4ade80; }
+.loan-badge-status.paid { background: rgba(255,255,255,0.1); color: #94a3b8; }
+.loan-badge-status.defaulted { background: rgba(239,68,68,0.2); color: #f87171; }
+.loan-badge-status.rejected { background: rgba(148,163,184,0.2); color: #94a3b8; }
+
+/* Client mini */
+.loan-client-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    position: relative;
+    z-index: 1;
+}
+.loan-client-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--dark-gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: #fff;
+    flex-shrink: 0;
+}
+.loan-client-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    object-fit: cover;
+}
+.loan-client-info .client-name {
+    font-weight: 600;
+    font-size: 15px;
+}
+.loan-client-info .client-contact {
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+    display: flex;
+    gap: 16px;
+    margin-top: 1px;
+}
+.loan-client-info .client-contact span { display: flex; align-items: center; gap: 4px; }
+
+/* Metric row */
+.loan-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+}
+.loan-metric {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+.loan-metric .metric-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+.loan-metric .metric-value {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+.loan-metric .metric-value.positive { color: #4ade80; }
+.loan-metric .metric-value.negative { color: #f87171; }
+.loan-metric .metric-value.neutral { color: #fbbf24; }
+
+/* Progress inside header */
+.loan-progress-wrap {
+    position: relative;
+    z-index: 1;
+}
+.loan-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.loan-progress-header .progress-label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+    font-weight: 500;
+}
+.loan-progress-header .progress-pct {
+    font-size: 13px;
+    font-weight: 700;
+    color: #4ade80;
+}
+.loan-progress-track {
+    height: 10px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 5px;
+    overflow: hidden;
+}
+.loan-progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #8b6914, #c49b2a);
+    transition: width 0.6s ease;
+}
+
+/* ── Info card ── */
+.info-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+.info-card-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+}
+.info-card-header i { color: var(--dark-gold); font-size: 15px; }
+.info-card-body { padding: 16px 20px; }
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f3f1;
+    font-size: 13px;
+}
+.info-row:last-child { border-bottom: none; }
+.info-row .label { color: var(--text-muted); font-weight: 500; }
+.info-row .value { font-weight: 600; color: var(--text); text-align: right; }
+
+/* ── Toolbar ── */
+.action-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 24px;
+}
+.action-toolbar .btn {
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ── Fine banner ── */
+.fine-banner {
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.fine-banner.active {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    border: 1px solid #fecaca;
+}
+.fine-banner.paused {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 1px solid #fde68a;
+}
+.fine-banner-left { display: flex; align-items: center; gap: 12px; }
+.fine-banner-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+}
+.fine-banner.active .fine-banner-icon { background: #fecaca; color: #dc2626; }
+.fine-banner.paused .fine-banner-icon { background: #fde68a; color: #d97706; }
+.fine-banner-text h6 { margin: 0; font-size: 13px; font-weight: 600; }
+.fine-banner-text small { color: var(--text-muted); font-size: 12px; }
+.fine-banner-amount { text-align: right; }
+.fine-banner-amount .amount { font-size: 18px; font-weight: 700; }
+.fine-banner.active .fine-banner-amount .amount { color: #dc2626; }
+.fine-banner.paused .fine-banner-amount .amount { color: #d97706; }
+.fine-banner-amount .label { font-size: 11px; color: var(--text-muted); }
+
+/* ── Timeline table ── */
+.timeline-table { font-size: 13px; }
+.timeline-table thead th {
+    background: #f8faf9;
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    padding: 10px 16px;
+}
+.timeline-table tbody td {
+    padding: 12px 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid #eef2f0;
+}
+.timeline-table tbody tr:last-child td { border-bottom: none; }
+.timeline-table tbody tr:hover { background: #f5f9f7; }
+
+/* Installment dot indicators */
+.installment-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+.installment-dot.paid { background: #16a34a; }
+.installment-dot.overdue { background: #dc2626; }
+.installment-dot.due_today { background: #d97706; }
+.installment-dot.upcoming { background: #d4ddd8; }
+
+/* ── Payment method badges ── */
+.method-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* ── Schedule summary card ── */
+.schedule-summary {
+    background: linear-gradient(135deg, #f8faf9, #e8f5ee);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+}
+.schedule-summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-size: 13px;
+}
+.schedule-summary-item:last-child { border-bottom: none; }
+.schedule-summary-item .label { color: var(--text-muted); font-weight: 500; }
+.schedule-summary-item .value { font-weight: 600; }
+
+/* ── Timeline dots for schedule progress ── */
+.dot-progress {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+.dot-progress .dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    transition: all 0.15s;
+}
+.dot-progress .dot.paid { background: #16a34a; border-color: #16a34a; }
+.dot-progress .dot.overdue { background: #dc2626; border-color: #dc2626; }
+.dot-progress .dot.due_today { background: #d97706; border-color: #d97706; animation: pulse-dot 1.5s infinite; }
+.dot-progress .dot.upcoming { background: transparent; border-color: #d4ddd8; }
+
+@keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(217,119,6,0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(217,119,6,0.15); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .loan-header-card { padding: 20px; }
+    .loan-metrics { grid-template-columns: repeat(2, 1fr); }
+    .loan-header-top .loan-number { font-size: 20px; }
+    .loan-client-row { flex-wrap: wrap; }
+    .loan-client-info .client-contact { flex-wrap: wrap; gap: 8px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{% if session.get('loan_view') %}
+{# ── View-only notice banner ── #}
+<div class="alert d-flex align-items-center justify-content-between mb-3"
+     style="background:var(--dark-green-bg);border:1px solid var(--dark-green);border-radius:10px;padding:12px 20px;">
+    <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-eye" style="color:var(--dark-green);font-size:16px;"></i>
+        <span style="font-size:13px;font-weight:500;color:var(--dark-green);">
+            You are viewing loan <strong>{{ loan.loan_number }}</strong> in read-only mode.
+        </span>
+    </div>
+    <form action="{{ url_for('client_loan_logout') }}" method="GET" class="m-0">
+        <button class="btn btn-sm" style="background:var(--dark-green);color:#fff;border-radius:6px;font-size:12px;">
+            <i class="bi bi-box-arrow-right me-1"></i>Leave
+        </button>
+    </form>
+</div>
+{% endif %}
+<!-- ═══════════════ HERO HEADER ═══════════════ -->
+<div class="loan-header-card">
+    <div class="loan-header-top">
+        <div>
+            <div class="loan-number">
+                {{ loan.loan_number }}
+                <small>
+                    {% if loan.purpose %}
+                    {{ loan.purpose }}
+                    {% else %}
+                    Loan Application
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+        <div class="loan-badge-group">
+            {% if loan.status in ('pending', 'active', 'paid', 'defaulted', 'rejected') %}
+            <span class="loan-badge-status {{ loan.status }}">
+                <i class="bi bi-circle-fill" style="font-size:6px"></i>
+                {{ loan.status.title() }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Client row -->
+    <div class="loan-client-row">
+        <div class="loan-client-avatar">
+            {% if loan.client_photo %}
+            <img src="{{ url_for('static', filename='uploads/' + loan.client_photo) }}" alt="{{ loan.client_name }}">
+            {% else %}
+            {{ loan.client_name[0] if loan.client_name else '?' }}
+            {% endif %}
+        </div>
+        <div class="loan-client-info">
+            <div class="client-name">{{ loan.client_name }}</div>
+            <div class="client-contact">
+                {% if loan.client_phone %}<span><i class="bi bi-telephone"></i>{{ loan.client_phone }}</span>{% endif %}
+                {% if loan.client_email %}<span><i class="bi bi-envelope"></i>{{ loan.client_email }}</span>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="loan-metrics">
+        <div class="loan-metric">
+            <div class="metric-label">Principal</div>
+            <div class="metric-value neutral">UGX {{ "{:,.0f}".format(loan.principal) }}</div>
+        </div>
+        <div class="loan-metric">
+            <div class="metric-label">Total Amount</div>
+            <div class="metric-value neutral">UGX {{ "{:,.0f}".format(loan.total_amount) }}</div>
+        </div>
+        <div class="loan-metric">
+            <div class="metric-label">Amount Paid</div>
+            <div class="metric-value positive">UGX {{ "{:,.0f}".format(loan.amount_paid) }}</div>
+        </div>
+        <div class="loan-metric">
+            <div class="metric-label">Balance</div>
+            <div class="metric-value {% if loan.balance > 0 %}negative{% else %}positive{% endif %}">
+                UGX {{ "{:,.0f}".format(loan.balance) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="loan-progress-wrap">
+        <div class="loan-progress-header">
+            <span class="progress-label">Repayment Progress</span>
+            <span class="progress-pct">{{ ((loan.amount_paid / loan.total_amount) * 100)|round(1) }}%</span>
+        </div>
+        <div class="loan-progress-track">
+            <div class="loan-progress-fill" style="width:{{ (loan.amount_paid / loan.total_amount) * 100 }}%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ MAIN GRID ═══════════════ -->
+<div class="row g-4">
+    {# ── LEFT COLUMN ── #}
+    <div class="col-lg-7">
+
+        <!-- Loan Details -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="bi bi-file-text"></i> Loan Information
+            </div>
+            <div class="info-card-body">
+                <div class="info-row">
+                    <span class="label">Interest Rate</span>
+                    <span class="value">{{ loan.interest_rate }}% <span class="text-muted fw-normal">({{ loan.interest_type }})</span></span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Payment Schedule</span>
+                    <span class="value"><span class="badge" style="background:var(--dark-green-bg);color:var(--dark-green);font-weight:500;">{{ loan.payment_schedule.title() }}</span></span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Start Date</span>
+                    <span class="value">{{ loan.start_date }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Due Date</span>
+                    <span class="value">{{ loan.due_date }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Next Payment Due</span>
+                    <span class="value">{{ loan.next_payment_date or 'N/A' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Guarantor</span>
+                    <span class="value">{{ loan.guarantor_name or 'N/A' }}{% if loan.guarantor_phone %} <span class="text-muted fw-normal">({{ loan.guarantor_phone }})</span>{% endif %}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Loan Officer</span>
+                    <span class="value">{{ loan.officer_name or 'N/A' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="bi bi-clock-history"></i> Timeline
+            </div>
+            <div class="info-card-body">
+                <div class="info-row">
+                    <span class="label"><i class="bi bi-plus-circle text-muted me-1" style="font-size:11px"></i> Created</span>
+                    <span class="value">{{ loan.created_at[:19].replace('T', ' ') if loan.created_at else 'N/A' }}</span>
+                </div>
+                {% if loan.approved_at %}
+                <div class="info-row">
+                    <span class="label"><i class="bi bi-check-circle text-success me-1" style="font-size:11px"></i> Approved</span>
+                    <span class="value text-success">{{ loan.approved_at[:19].replace('T', ' ') if loan.approved_at else 'N/A' }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Fine Banner -->
+        {% if loan.fine_amount > 0 or loan.fine_active %}
+        <div class="fine-banner {% if loan.fine_active %}active{% else %}paused{% endif %}">
+            <div class="fine-banner-left">
+                <div class="fine-banner-icon">
+                    <i class="bi bi-{% if loan.fine_active %}exclamation-circle{% else %}pause-circle{% endif %}"></i>
+                </div>
+                <div class="fine-banner-text">
+                    <h6>{% if loan.fine_active %}Fine Active{% else %}Fine Paused{% endif %}</h6>
+                    <small>Default count: {{ loan.default_count }} &middot; Rate: 0.07%/day of total loan</small>
+                </div>
+            </div>
+            <div class="fine-banner-amount">
+                <div class="label">Fine Amount</div>
+                <div class="amount">UGX {{ "{:,.0f}".format(loan.fine_amount) }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>{# /left col #}
+
+    {# ── RIGHT COLUMN ── #}
+    <div class="col-lg-5">
+
+        <!-- Schedule Summary -->
+        {% if schedule %}
+        <div class="schedule-summary mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-calendar-check" style="color:var(--dark-gold);font-size:16px;"></i>
+                <h6 class="mb-0 fw-semibold" style="font-size:14px;">Payment Schedule</h6>
+            </div>
+            <div class="schedule-summary-item">
+                <span class="label">Schedule</span>
+                <span class="value">{{ schedule.label }}</span>
+            </div>
+            <div class="schedule-summary-item">
+                <span class="label">Installment</span>
+                <span class="value" style="color:var(--dark-gold)">UGX {{ "{:,.0f}".format(schedule.installment_amount) }}</span>
+            </div>
+            <div class="schedule-summary-item">
+                <span class="label">Total Payments</span>
+                <span class="value">{{ schedule.total_payments }}</span>
+            </div>
+            <div class="schedule-summary-item">
+                <span class="label">Completion Date</span>
+                <span class="value" style="color:#16a34a">{{ schedule.completion_date }}</span>
+            </div>
+
+            <!-- Dot progress -->
+            {% set paid_count = namespace(value=0) %}
+            {% for p in schedule.schedule %}
+                {% if p.status == 'paid' %}{% set paid_count.value = paid_count.value + 1 %}{% endif %}
+            {% endfor %}
+            <div class="d-flex justify-content-between mt-2 mb-1">
+                <span class="small text-muted">Progress: {{ paid_count.value }}/{{ schedule.total_payments }} paid</span>
+                <span class="small fw-semibold">{{ (paid_count.value / schedule.total_payments * 100)|round }}%</span>
+            </div>
+            <div class="dot-progress">
+                {% for p in schedule.schedule[:30] %}
+                <span class="dot {{ p.status }}" title="#{{ p.number }}: {{ p.date }}"></span>
+                {% endfor %}
+                {% if schedule.schedule|length > 30 %}
+                <span class="small text-muted ms-1">+{{ schedule.schedule|length - 30 }} more</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Stats -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="bi bi-info-circle"></i> Quick Info
+            </div>
+            <div class="info-card-body">
+                <div class="info-row">
+                    <span class="label">Processing Fee</span>
+                    <span class="value">UGX {{ "{:,.0f}".format(loan.processing_fee or 0) }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Default Count</span>
+                    <span class="value">{{ loan.default_count or 0 }}</span>
+                </div>
+                {% if loan.fine_active is not none %}
+                <div class="info-row">
+                    <span class="label">Fine Status</span>
+                    <span class="value">
+                        {% if loan.fine_active %}
+                        <span class="badge bg-danger" style="font-size:10px">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary" style="font-size:10px">Paused</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>{# /right col #}
+</div>
+
+<!-- ═══════════════ ACTION TOOLBAR ═══════════════ -->
+{% if session.user_role != 'loan_viewer' %}
+<div class="action-toolbar">
+    {% if loan.status == 'pending' and session.user_role in ('admin', 'loan_officer') %}
+        {% if session.user_role == 'admin' or loan.principal < 3000000 %}
+        <form action="{{ url_for('approve_loan_route', loan_id=loan.id) }}" method="POST" class="d-inline">
+            <button class="btn btn-success"><i class="bi bi-check-lg"></i> Approve</button>
+        </form>
+        {% endif %}
+        {% if session.user_role == 'admin' or loan.principal < 3000000 %}
+        <form action="{{ url_for('reject_loan_route', loan_id=loan.id) }}" method="POST" class="d-inline">
+            <button class="btn btn-outline-danger"><i class="bi bi-x-lg"></i> Reject</button>
+        </form>
+        {% endif %}
+    {% endif %}
+    {% if loan.status == 'active' %}
+    <a href="{{ url_for('repay_loan', loan_id=loan.id) }}" class="btn btn-primary"><i class="bi bi-credit-card"></i> Record Payment</a>
+    <form action="{{ url_for('send_reminder', loan_id=loan.id) }}" method="POST" class="d-inline">
+        <button class="btn btn-outline-warning"><i class="bi bi-bell"></i> Send Reminder</button>
+    </form>
+    {% if loan.client_phone %}
+    <form action="{{ url_for('sms_send_reminder', loan_id=loan.id) }}" method="POST" class="d-inline">
+        <button class="btn btn-outline-success"><i class="bi bi-chat-dots"></i> SMS Reminder</button>
+    </form>
+    {% endif %}
+    {% endif %}
+    {% if loan.status in ('active', 'defaulted') and loan.client_phone %}
+    <form action="{{ url_for('sms_send_overdue', loan_id=loan.id) }}" method="POST" class="d-inline">
+        <button class="btn btn-outline-danger"><i class="bi bi-phone"></i> Overdue Alert</button>
+    </form>
+    {% endif %}
+    {% if session.user_role in ('admin', 'loan_officer') %}
+    <a href="{{ url_for('edit_loan', loan_id=loan.id) }}" class="btn btn-outline-warning"><i class="bi bi-pencil"></i> Edit</a>
+    <form action="{{ url_for('check_fine_route', loan_id=loan.id) }}" method="POST" class="d-inline">
+        <button class="btn btn-outline-danger"><i class="bi bi-exclamation-triangle"></i> Check Fine</button>
+    </form>
+    {% if loan.fine_active %}
+    <form action="{{ url_for('toggle_fine_route', loan_id=loan.id) }}" method="POST" class="d-inline">
+        <input type="hidden" name="action" value="pause">
+        <button class="btn btn-outline-secondary"><i class="bi bi-pause"></i> Pause Fine</button>
+    </form>
+    {% else %}
+    <form action="{{ url_for('toggle_fine_route', loan_id=loan.id) }}" method="POST" class="d-inline">
+        <input type="hidden" name="action" value="activate">
+        <button class="btn btn-outline-warning"><i class="bi bi-play"></i> Activate Fine</button>
+    </form>
+    {% endif %}
+    {% endif %}
+    {% if session.user_role == 'admin' %}
+    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteLoanModal"><i class="bi bi-trash"></i> Delete</button>
+    {% endif %}
+    <a href="{{ url_for('client_profile', client_id=loan.client_id) }}" class="btn btn-outline-secondary"><i class="bi bi-person"></i> View Client</a>
+</div>
+{% else %}
+{# ── View-only: show a muted info banner instead of action buttons ── #}
+<div class="action-toolbar" style="background:#f8faf9;border-color:#d4ddd8;justify-content:center;">
+    <span class="text-muted" style="font-size:13px;">
+        <i class="bi bi-eye me-2"></i>View-only mode — no actions available
+    </span>
+</div>
+{% endif %}
+
+<!-- ═══════════════ FULL SCHEDULE TABLE ═══════════════ -->
+{% if schedule %}
+<div class="info-card">
+    <div class="info-card-header">
+        <i class="bi bi-calendar3"></i> Full Payment Schedule
+        <span class="ms-auto badge" style="background:var(--dark-green-bg);color:var(--dark-green);font-weight:500;font-size:11px;">
+            {{ schedule.label }} &middot; UGX {{ "{:,.0f}".format(schedule.installment_amount) }}/payment
+        </span>
+    </div>
+    <div class="info-card-body p-0">
+        <div class="table-responsive">
+            <table class="timeline-table table mb-0">
+                <thead>
+                    <tr>
+                        <th style="width:50px">#</th>
+                        <th>Due Date</th>
+                        <th>Amount</th>
+                        <th>Cumulative</th>
+                        <th>Remaining</th>
+                        <th style="width:120px">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in schedule.schedule %}
+                    <tr{% if p.status == 'overdue' %} style="background:#fef2f2;"{% elif p.status == 'due_today' %} style="background:#fffbeb;"{% elif p.status == 'paid' %} style="background:#f0fdf4;"{% endif %}>
+                        <td class="fw-semibold">{{ p.number }}</td>
+                        <td>
+                            <span class="installment-dot {{ p.status }}"></span>
+                            {{ p.date }}
+                        </td>
+                        <td class="fw-semibold">UGX {{ "{:,.0f}".format(p.amount) }}</td>
+                        <td>UGX {{ "{:,.0f}".format(p.cumulative) }}</td>
+                        <td class="fw-semibold">UGX {{ "{:,.0f}".format(p.remaining) }}</td>
+                        <td>
+                            {% if p.status == 'paid' %}
+                            <span class="badge bg-success"><i class="bi bi-check"></i> Paid</span>
+                            {% elif p.status == 'overdue' %}
+                            <span class="badge bg-danger"><i class="bi bi-exclamation"></i> Overdue</span>
+                            {% elif p.status == 'due_today' %}
+                            <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Due Today</span>
+                            {% else %}
+                            <span class="badge" style="background:#f1f5f9;color:#64748b;">Upcoming</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══════════════ REPAYMENT HISTORY ═══════════════ -->
+<div class="info-card">
+    <div class="info-card-header">
+        <i class="bi bi-clock-history"></i> Repayment History
+        <span class="ms-auto small text-muted">{{ repayments|length }} payment{% if repayments|length != 1 %}s{% endif %}</span>
+    </div>
+    <div class="info-card-body p-0">
+        <div class="table-responsive">
+            <table class="timeline-table table mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Type</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                        <th>Received By</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in repayments %}
+                    <tr>
+                        <td><span class="fw-semibold" style="font-size:12px;white-space:nowrap;">{{ r.created_at[:19].replace('T', ' ') }}</span></td>
+                        <td class="fw-semibold" style="color:#16a34a">UGX {{ "{:,.0f}".format(r.amount) }}</td>
+                        <td>
+                            {% if r.payment_type == 'fine' %}
+                            <span class="badge" style="background:#fef2f2;color:#dc2626;font-weight:500;">Fine</span>
+                            {% else %}
+                            <span class="badge" style="background:#f0fdf4;color:#16a34a;font-weight:500;">Principal</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="method-badge">{{ r.payment_method.upper() }}</span></td>
+                        <td style="font-size:12px;color:var(--text-muted)">{{ r.reference or '-' }}</td>
+                        <td>{{ r.received_by_name or '-' }}</td>
+                        <td style="color:var(--text-muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.notes or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-5">
+                            <i class="bi bi-credit-card-2-front" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.4;"></i>
+                            No repayments recorded yet
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ DELETE MODAL ═══════════════ -->
+{% if session.user_role != 'loan_viewer' %}
+<div class="modal fade" id="deleteLoanModal" tabindex="-1" aria-labelledby="deleteLoanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:12px;border:none;box-shadow:0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background:#dc2626;color:#fff;border-radius:12px 12px 0 0;padding:16px 20px;">
+                <h5 class="modal-title" id="deleteLoanModalLabel" style="font-size:15px;font-weight:600;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Delete Loan
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding:24px;">
+                <p style="margin-bottom:16px;">Are you sure you want to delete <strong>{{ loan.loan_number }}</strong> for <strong>{{ loan.client_name }}</strong>?</p>
+                <div class="d-flex align-items-start gap-2 p-3 rounded" style="background:#fef2f2;border:1px solid #fecaca;font-size:13px;">
+                    <i class="bi bi-info-circle" style="color:#dc2626;margin-top:2px;"></i>
+                    <div>
+                        <strong style="color:#991b1b;">Warning:</strong>
+                        <span style="color:#7f1d1d;">This action cannot be undone. Loans with existing repayments cannot be deleted.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid #eef2f0;padding:16px 20px;">
+                <button type="button" class="btn btn-secondary" style="border-radius:6px;" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('delete_loan', loan_id=loan.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn" style="background:#dc2626;color:#fff;border-radius:6px;"><i class="bi bi-trash me-1"></i> Delete Loan</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

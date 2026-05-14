@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Vaulta - User Management{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-people-fill me-2 text-gold"></i>All System Users</span>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-person-plus"></i> Add User
+            </a>
+            <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('admin_users') }}" class="btn btn-outline-primary {% if not role_filter %}active{% endif %}">All</a>
+                <a href="{{ url_for('admin_users', role='admin') }}" class="btn btn-outline-primary {% if role_filter == 'admin' %}active{% endif %}">Admins</a>
+                <a href="{{ url_for('admin_users', role='loan_officer') }}" class="btn btn-outline-primary {% if role_filter == 'loan_officer' %}active{% endif %}">Officers</a>
+                <a href="{{ url_for('admin_users', role='client') }}" class="btn btn-outline-primary {% if role_filter == 'client' %}active{% endif %}">Clients</a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Role</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Active</th>
+                        <th>Created</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td class="text-muted">{{ user.id }}</td>
+                        <td><strong>{{ user.username }}</strong></td>
+                        <td>{{ user.full_name }}</td>
+                        <td>
+                            {% if user.role == 'admin' %}
+                            <span class="badge bg-gold">Admin</span>
+                            {% elif user.role == 'loan_officer' %}
+                            <span class="badge" style="background:var(--dark-green);color:#fff;">Officer</span>
+                            {% else %}
+                            <span class="badge" style="background:#e8f5ee;color:var(--dark-green);">Client</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.phone or '—' }}</td>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="badge-status badge-active">Active</span>
+                            {% else %}
+                            <span class="badge-status badge-rejected">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ user.created_at[:10] if user.created_at else '—' }}</td>
+                        <td class="text-end">
+                            <div class="d-flex gap-1 justify-content-end">
+                                <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% if user.id != session.user_id %}
+                                <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display:inline" onsubmit="return confirm('Deactivate user \'{{ user.username }}\'? This can be reversed by an admin.');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" {% if not user.is_active %}disabled{% endif %}>
+                                        <i class="bi bi-person-x"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+                            No users found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

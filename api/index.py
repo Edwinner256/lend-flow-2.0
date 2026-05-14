@@ -13,9 +13,12 @@ import importlib.util
 
 # ── Detect Vercel environment ──
 IS_VERCEL = os.environ.get('VERCEL', '') == '1'
+HAS_DATABASE_URL = os.environ.get('DATABASE_URL', '').startswith('postgres')
 
-if IS_VERCEL:
-    # On Vercel, use /tmp for SQLite (writable but NOT persistent across cold starts)
+if IS_VERCEL and not HAS_DATABASE_URL:
+    # On Vercel without PostgreSQL, use /tmp for SQLite
+    # NOTE: SQLite on Vercel is NOT persistent — data lost on cold start.
+    # Set DATABASE_URL to a PostgreSQL connection string for persistence.
     os.environ.setdefault('DATABASE_PATH', '/tmp/lendflow.db')
 
 # ── Load the Flask app from root app.py ──
@@ -32,10 +35,10 @@ spec.loader.exec_module(mod)
 # Expose the Flask app for Vercel
 app = mod.app
 
-# ── Seed database on cold start for Vercel ──
-if IS_VERCEL:
+# ── Seed database on cold start (Vercel SQLite / fresh PostgreSQL) ──
+if IS_VERCEL or HAS_DATABASE_URL:
     try:
-        # Check if DB is empty (fresh cold start)
+        # Check if DB is empty (fresh cold start or empty PostgreSQL)
         from app.database import get_db
         conn = get_db()
         count = conn.execute('SELECT COUNT(*) FROM loans').fetchone()[0]

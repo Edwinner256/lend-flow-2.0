@@ -182,13 +182,15 @@ def seed():
     )
     approve_loan(loan10_id, admin_id)
     # Mark as defaulted with an overdue date and fine
+    from datetime import datetime, timedelta
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     conn = get_db()
     conn.execute(
-        "UPDATE loans SET status = 'defaulted', due_date = date('now', '-30 days'), "
-        "next_payment_date = date('now', '-30 days'), default_count = 3, "
+        "UPDATE loans SET status = 'defaulted', due_date = ?, "
+        "next_payment_date = ?, default_count = 3, "
         "fine_amount = fine_amount + 73, fine_active = 1, "
         "balance = balance + 73 WHERE id = ?",
-        (loan10_id,)
+        (thirty_days_ago, thirty_days_ago, loan10_id)
     )
     conn.commit()
     conn.close()

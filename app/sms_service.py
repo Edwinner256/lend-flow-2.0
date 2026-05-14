@@ -177,7 +177,7 @@ def get_sms_stats():
         sent = conn.execute("SELECT COUNT(*) FROM sms_logs WHERE status = 'sent'").fetchone()[0]
         failed = conn.execute("SELECT COUNT(*) FROM sms_logs WHERE status = 'failed'").fetchone()[0]
         today = conn.execute(
-            "SELECT COUNT(*) FROM sms_logs WHERE sent_at >= date('now')"
+            "SELECT COUNT(*) FROM sms_logs WHERE sent_at >= CURRENT_DATE"
         ).fetchone()[0]
         return {'total': total, 'sent': sent, 'failed': failed, 'today': today}
     except Exception:

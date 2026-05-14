@@ -1,39 +1,34 @@
 """Database models for LendFlow - Enhanced"""
 
-import sqlite3
 import os
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# ── Database path ──────────────────────────────────────────────
-# Default: <project_root>/data/lendflow.db
-# Override via DATABASE_PATH env var (e.g., Railway volume mount)
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
-_DEFAULT_DB = os.path.join(_PROJECT_ROOT, 'data', 'lendflow.db')
-DB_PATH = os.environ.get('DATABASE_PATH', _DEFAULT_DB)
+from app.db_adapter import (
+    get_db, IS_POSTGRES, DB_PATH, IntegrityError,
+    translate_ddl, translate_date, is_pragma
+)
 
+# Upload folder for profile pictures, collateral photos, etc.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UPLOAD_FOLDER = os.path.join(_PROJECT_ROOT, 'static', 'uploads')
 
 
-def get_db():
-    """Get database connection"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")  # better concurrent performance
-    return conn
-
-
 def init_db():
-    """Initialize database tables"""
-    # Ensure both directories exist
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    """Initialize database tables — SQLite and PostgreSQL compatible."""
+    # Ensure directories exist (SQLite needs DB dir; PG is managed externally)
+    from app.db_adapter import init_db as _adapter_init
+    _adapter_init()
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
     conn = get_db()
     cursor = conn.cursor()
 
+    # For PostgreSQL: translate SQLite-specific DDL syntax
+    _ddl = translate_ddl if IS_POSTGRES else lambda s: s
+
     # Users table (multi-role)
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -49,7 +44,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    '''))
 
     # Add profile_picture column if it doesn't exist
     try:
@@ -58,7 +53,7 @@ def init_db():
         pass
 
     # Client profiles
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS client_profiles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER UNIQUE NOT NULL,
@@ -74,10 +69,10 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
-    ''')
+    '''))
 
     # Loans - Enhanced
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS loans (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             loan_number TEXT UNIQUE NOT NULL,
@@ -108,7 +103,7 @@ def init_db():
             FOREIGN KEY (loan_officer_id) REFERENCES users(id),
             FOREIGN KEY (approved_by) REFERENCES users(id)
         )
-    ''')
+    '''))
 
     # Add new columns if they don't exist
     # IMPORTANT: ALTER TABLE ADD COLUMN requires a valid SQL type name
@@ -128,7 +123,7 @@ def init_db():
             pass
 
     # Repayments
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS repayments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             loan_id INTEGER NOT NULL,
@@ -142,7 +137,7 @@ def init_db():
             FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE,
             FOREIGN KEY (received_by) REFERENCES users(id)
         )
-    ''')
+    '''))
 
     # Migration: add payment_type column to repayments
     try:
@@ -151,30 +146,31 @@ def init_db():
         pass
 
     # Migration: widen payment_method constraint
-    try:
-        conn.execute("ALTER TABLE repayments RENAME TO repayments_old")
-        cursor.execute('''
-            CREATE TABLE repayments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                loan_id INTEGER NOT NULL,
-                amount REAL NOT NULL,
-                payment_type TEXT DEFAULT 'principal' CHECK(payment_type IN ('principal', 'fine')),
-                payment_method TEXT CHECK(payment_method IN ('cash', 'mpesa', 'mtn', 'airtel', 'bank', 'cheque')),
-                reference TEXT,
-                received_by INTEGER,
-                notes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE,
-                FOREIGN KEY (received_by) REFERENCES users(id)
-            )
-        ''')
-        conn.execute("INSERT INTO repayments SELECT * FROM repayments_old")
-        conn.execute("DROP TABLE repayments_old")
-    except:
-        pass
+    if not IS_POSTGRES:  # SQLite-only migration (PG handles this at schema level)
+        try:
+            conn.execute("ALTER TABLE repayments RENAME TO repayments_old")
+            cursor.execute(_ddl('''
+                CREATE TABLE repayments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    loan_id INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    payment_type TEXT DEFAULT 'principal' CHECK(payment_type IN ('principal', 'fine')),
+                    payment_method TEXT CHECK(payment_method IN ('cash', 'mpesa', 'mtn', 'airtel', 'bank', 'cheque')),
+                    reference TEXT,
+                    received_by INTEGER,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE,
+                    FOREIGN KEY (received_by) REFERENCES users(id)
+                )
+            '''))
+            conn.execute("INSERT INTO repayments SELECT * FROM repayments_old")
+            conn.execute("DROP TABLE repayments_old")
+        except:
+            pass
 
     # Notifications
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -187,9 +183,10 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
-    ''')
+    '''))
 
     # Migration: add entity_type + entity_id to notifications
+
     for col in ['entity_type', 'entity_id']:
         try:
             cursor.execute(f'ALTER TABLE notifications ADD COLUMN {col} TEXT')
@@ -197,7 +194,7 @@ def init_db():
             pass
 
     # Audit log
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -209,10 +206,10 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
-    ''')
+    '''))
 
     # SMS logs
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS sms_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             phone TEXT NOT NULL,
@@ -221,10 +218,10 @@ def init_db():
             api_response TEXT,
             sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    '''))
 
     # Login attempts tracking (for brute-force protection)
-    cursor.execute('''
+    cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS login_attempts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
@@ -232,7 +229,7 @@ def init_db():
             attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             success INTEGER DEFAULT 0
         )
-    ''')
+    '''))
 
     conn.commit()
     conn.close()
@@ -260,14 +257,14 @@ def create_user(username, email, password, role, full_name, phone=None, address=
     """Create a new user"""
     conn = get_db()
     try:
-        conn.execute(
-            'INSERT INTO users (username, email, password_hash, role, full_name, phone, address, id_number, profile_picture) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        cursor = conn.execute(
+            'INSERT INTO users (username, email, password_hash, role, full_name, phone, address, id_number, profile_picture) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
             (username, email, generate_password_hash(password, method='pbkdf2:sha256'), role, full_name, phone, address, id_number, profile_picture)
         )
+        user_id = cursor.fetchone()[0]
         conn.commit()
-        user_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         return user_id
-    except sqlite3.IntegrityError as e:
+    except IntegrityError:
         return None
     finally:
         conn.close()
@@ -384,12 +381,12 @@ def create_loan(client_id, principal, interest_rate, interest_type, payment_sche
         '''INSERT INTO loans (loan_number, client_id, loan_officer_id, principal, interest_rate, interest_type,
            payment_schedule, total_amount, balance, fine_amount, fine_active, default_count,
            purpose, guarantor_name, guarantor_phone, start_date, due_date, next_payment_date, processing_fee, collateral_photo)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?)''',
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id''',
         (loan_number, client_id, loan_officer_id, principal, interest_rate, interest_type,
          payment_schedule, total_amount, balance, purpose, guarantor_name, guarantor_phone,
          start_date, due_date, next_payment, processing_fee, collateral_photo)
     )
-    loan_id = cursor.lastrowid
+    loan_id = cursor.fetchone()[0]
     conn.commit()
     conn.close()
     return loan_id, loan_number
@@ -779,7 +776,7 @@ def get_dashboard_stats():
         SELECT l.id, l.loan_number, l.balance, l.due_date, l.next_payment_date, l.fine_amount, l.fine_active,
                u.full_name as client_name, u.phone as client_phone
         FROM loans l JOIN users u ON l.client_id = u.id
-        WHERE l.status IN ('active', 'defaulted') AND l.next_payment_date < date('now')
+        WHERE l.status IN ('active', 'defaulted') AND l.next_payment_date < CURRENT_DATE
         ORDER BY l.next_payment_date ASC
     ''').fetchall()]
 

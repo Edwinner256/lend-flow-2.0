@@ -19,5 +19,6 @@
     "VERCEL": "1",
     "FLASK_ENV": "production",
     "SMS_MOCK_MODE": "True"
-  }
+  },
+  "buildCommand": "pip install -r requirements.txt"
 }

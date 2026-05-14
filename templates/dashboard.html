@@ -559,6 +559,58 @@
     </div>
 </div>
 
+<!-- ═══════════════ AI INSIGHTS ═══════════════ -->
+<div class="row g-3 mb-2 mt-1 toggle-section" id="ai-insights-section">
+    <div class="col-12">
+        <div class="card" style="border-color: var(--dark-green-light);">
+            <div class="card-header d-flex justify-content-between align-items-center"
+                 style="background: linear-gradient(135deg, #1a3c2a, #0f281b); color: #fff; border-bottom: none;">
+                <span>
+                    <i class="bi bi-robot me-2"></i>AI Portfolio Insights
+                    <span class="badge ms-2" style="background:rgba(139,105,20,0.3);color:#c49b2a;font-size:9px;vertical-align:middle;">
+                        <i class="bi bi-cpu me-1"></i>POWERED BY RULE ENGINE
+                    </span>
+                </span>
+                <small style="color:rgba(255,255,255,0.5);font-size:11px;">
+                    <i class="bi bi-lightning-fill me-1"></i>Auto-generated
+                </small>
+            </div>
+            <div class="card-body p-0">
+                {% if ai_insights and ai_insights|length > 0 %}
+                <div style="padding:16px 20px;">
+                    {% for insight in ai_insights %}
+                    <div class="d-flex align-items-start gap-3 py-2 {% if not loop.last %}" style="border-bottom:1px solid #eef2f0;"{% else %}"{% endif %}>
+                        <div class="rounded-2 p-2 d-flex align-items-center justify-content-center"
+                             style="width:36px;height:36px;
+                                    {% if insight.type == 'positive' %}background:#dcfce7;color:#16a34a;
+                                    {% elif insight.type == 'warning' %}background:#fee2e2;color:#dc2626;
+                                    {% else %}background:#f1f5f9;color:#64748b;{% endif %}">
+                            <i class="bi {{ insight.icon }}" style="font-size:16px;"></i>
+                        </div>
+                        <div style="flex:1;">
+                            <div class="fw-semibold" style="font-size:13px;">{{ insight.title }}</div>
+                            <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">{{ insight.description }}</div>
+                        </div>
+                        <span class="badge" style="font-size:9px;align-self:center;
+                             {% if insight.type == 'positive' %}background:#dcfce7;color:#166534;
+                             {% elif insight.type == 'warning' %}background:#fee2e2;color:#991b1b;
+                             {% else %}background:#f1f5f9;color:#475569;{% endif %}">
+                            {{ insight.type|title }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-robot" style="font-size:32px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+                    <p class="mb-0" style="font-size:13px;">AI insights will appear here once there is enough portfolio data.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // ── Local-time greeting ──
 (function() {

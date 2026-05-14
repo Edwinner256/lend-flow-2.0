@@ -744,6 +744,101 @@
 </div>
 {% endif %}
 
+<!-- ═══════════════ AI RISK ASSESSMENT ═══════════════ -->
+{% if session.user_role != 'loan_viewer' %}
+<div class="info-card">
+    <div class="info-card-header d-flex justify-content-between align-items-center" style="cursor:pointer;"
+         onclick="toggleAiRisk(this)">
+        <span>
+            <i class="bi bi-robot" style="color:var(--dark-gold);font-size:15px;"></i>
+            AI Risk Assessment
+            <span class="badge ms-2" style="background:var(--dark-green);font-size:9px;font-weight:500;color:#fff;letter-spacing:0.3px;">
+                <i class="bi bi-cpu me-1"></i>RULE ENGINE
+            </span>
+        </span>
+        <i class="bi bi-chevron-down" id="ai-chevron" style="transition:transform 0.2s;"></i>
+    </div>
+    <div id="ai-risk-content" style="display:none;">
+        <div class="info-card-body text-center py-4" id="ai-risk-loading">
+            <div class="spinner-border spinner-border-sm text-gold me-2" role="status"></div>
+            <span class="text-muted" style="font-size:13px;">Analyzing client data...</span>
+        </div>
+        <div id="ai-risk-result" style="display:none;padding:16px 20px;"></div>
+    </div>
+</div>
+
+<script>
+async function loadAiRisk() {
+    const clientId = {{ loan.client_id }};
+    const container = document.getElementById('ai-risk-result');
+    const loading = document.getElementById('ai-risk-loading');
+    try {
+        const res = await fetch('/api/ai/risk-score/' + clientId);
+        const data = await res.json();
+        loading.style.display = 'none';
+        container.style.display = 'block';
+        if (data.error) {
+            container.innerHTML = `<div class="text-muted text-center py-3">${data.error}</div>`;
+            return;
+        }
+        // Score color
+        let scoreColor = '#dc2626';
+        if (data.score >= 80) scoreColor = '#16a34a';
+        else if (data.score >= 65) scoreColor = '#22c55e';
+        else if (data.score >= 50) scoreColor = '#d97706';
+        else if (data.score >= 30) scoreColor = '#ea580c';
+
+        let factorsHtml = '';
+        if (data.factors && data.factors.length) {
+            factorsHtml = '<div style="margin-top:12px;"><div class="fw-semibold mb-2" style="font-size:12px;color:var(--text-secondary);">KEY FACTORS</div>';
+            data.factors.forEach(f => {
+                const isPos = f.toLowerCase().includes('excellent') || f.toLowerCase().includes('good') || f.toLowerCase().includes('no ') || f.toLowerCase().includes('high') || f.toLowerCase().includes('stable') || f.toLowerCase().includes('perfect');
+                factorsHtml += `<div class="d-flex align-items-center gap-2 py-1" style="font-size:12px;">
+                    <i class="bi bi-${isPos ? 'check-circle' : 'exclamation-circle'}" style="color:${isPos ? '#16a34a' : '#d97706'};font-size:10px;"></i>
+                    <span>${f}</span>
+                </div>`;
+            });
+            factorsHtml += '</div>';
+        }
+
+        container.innerHTML = `
+            <div class="d-flex align-items-start gap-4">
+                <div class="text-center" style="min-width:80px;">
+                    <div style="font-size:28px;font-weight:800;color:${scoreColor};">${data.score}</div>
+                    <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);">Score</div>
+                    <div class="mt-1"><span class="badge" style="background:${scoreColor};color:#fff;font-size:10px;">${data.rating}</span></div>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-size:12px;color:var(--text-secondary);font-weight:500;margin-bottom:4px;">RECOMMENDATION</div>
+                    <div style="font-size:13px;font-weight:600;">${data.recommendation || 'Standard processing'}</div>
+                    ${factorsHtml}
+                    <div style="margin-top:8px;font-size:10px;color:var(--text-muted);"><i class="bi bi-cpu me-1"></i>${data.source || 'ai'}</div>
+                </div>
+            </div>
+        `;
+    } catch(e) {
+        loading.innerHTML = `<span class="text-muted" style="font-size:13px;">Could not load risk assessment.</span>`;
+    }
+}
+
+function toggleAiRisk(header) {
+    const content = document.getElementById('ai-risk-content');
+    const chevron = document.getElementById('ai-chevron');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        chevron.style.transform = 'rotate(180deg)';
+        if (!document.getElementById('ai-risk-result').getAttribute('data-loaded')) {
+            document.getElementById('ai-risk-result').setAttribute('data-loaded', 'true');
+            loadAiRisk();
+        }
+    } else {
+        content.style.display = 'none';
+        chevron.style.transform = 'rotate(0deg)';
+    }
+}
+</script>
+{% endif %}
+
 <!-- ═══════════════ REPAYMENT HISTORY ═══════════════ -->
 <div class="info-card">
     <div class="info-card-header">
@@ -825,5 +920,157 @@
         </div>
     </div>
 </div>
+{% endif %}
+
+{% if session.get('loan_view') %}
+<!-- ═══════════════ AI FAQ CHATBOT ═══════════════ -->
+<style>
+#ai-faq-btn {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #1a3c2a, #0f281b);
+    color: #fff; border: none; font-size: 24px;
+    box-shadow: 0 4px 16px rgba(26,60,42,0.35);
+    cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+    display: flex; align-items: center; justify-content: center;
+}
+#ai-faq-btn:hover { transform: scale(1.05); box-shadow: 0 6px 24px rgba(26,60,42,0.45); }
+#ai-faq-panel {
+    position: fixed; bottom: 88px; right: 24px; z-index: 9998;
+    width: 360px; max-height: 480px;
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+    display: none; flex-direction: column; overflow: hidden;
+    border: 1px solid #d4ddd8;
+}
+#ai-faq-header {
+    background: linear-gradient(135deg, #1a3c2a, #0f281b);
+    color: #fff; padding: 14px 18px; font-weight: 600; font-size: 14px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+#ai-faq-header small { font-weight: 400; opacity: 0.7; font-size: 11px; }
+#ai-faq-close { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 18px; }
+#ai-faq-close:hover { color: #fff; }
+#ai-faq-messages {
+    flex: 1; overflow-y: auto; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 200px; max-height: 340px;
+}
+.ai-faq-msg { padding: 10px 14px; border-radius: 10px; font-size: 13px; max-width: 85%; line-height: 1.5; }
+.ai-faq-msg.bot {
+    background: #f1f5f9; color: var(--text); align-self: flex-start;
+    border-bottom-left-radius: 4px;
+}
+.ai-faq-msg.user {
+    background: #1a3c2a; color: #fff; align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+.ai-faq-msg.bot .source-tag {
+    display: block; font-size: 9px; color: var(--text-muted); margin-top: 6px;
+    opacity: 0.6;
+}
+#ai-faq-input-row {
+    display: flex; padding: 10px 14px; border-top: 1px solid #eef2f0;
+    gap: 8px; background: #fff;
+}
+#ai-faq-input {
+    flex: 1; border: 2px solid #d4ddd8; border-radius: 8px;
+    padding: 10px 12px; font-size: 13px;
+    outline: none; transition: border-color 0.15s;
+}
+#ai-faq-input:focus { border-color: #1a3c2a; }
+#ai-faq-send {
+    background: #1a3c2a; color: #fff; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: background 0.15s; white-space: nowrap;
+}
+#ai-faq-send:hover { background: #24543a; }
+#ai-faq-send:disabled { opacity: 0.5; cursor: not-allowed; }
+.ai-faq-suggestions {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px 4px;
+    border-top: 1px solid #eef2f0;
+}
+.ai-faq-suggestion {
+    font-size: 11px; padding: 4px 10px; background: var(--dark-green-bg);
+    color: var(--dark-green); border: 1px solid #c8dcd0; border-radius: 12px;
+    cursor: pointer; transition: all 0.15s;
+}
+.ai-faq-suggestion:hover { background: #1a3c2a; color: #fff; border-color: #1a3c2a; }
+</style>
+
+<div id="ai-faq-btn" onclick="toggleFaq()" title="Ask AI Assistant">
+    <i class="bi bi-chat-dots"></i>
+</div>
+
+<div id="ai-faq-panel">
+    <div id="ai-faq-header">
+        <div><i class="bi bi-robot me-2"></i>Vaulta Assistant</div>
+        <button id="ai-faq-close" onclick="toggleFaq()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div id="ai-faq-messages">
+        <div class="ai-faq-msg bot">
+            Hi{{ ' ' + (loan.client_name or '') }}! I'm your Vaulta assistant.
+            Ask me about your balance, payments, interest rate, or fines.
+            <span class="source-tag"><i class="bi bi-cpu me-1"></i>AI · Rule Engine</span>
+        </div>
+    </div>
+    <div class="ai-faq-suggestions" id="ai-faq-suggestions">
+        <span class="ai-faq-suggestion" onclick="askFaq('What is my balance?')">What is my balance?</span>
+        <span class="ai-faq-suggestion" onclick="askFaq('When is my next payment?')">When is my next payment?</span>
+        <span class="ai-faq-suggestion" onclick="askFaq('Do I have any fines?')">Do I have any fines?</span>
+    </div>
+    <div id="ai-faq-input-row">
+        <input type="text" id="ai-faq-input" placeholder="Type your question..." onkeydown="if(event.key==='Enter') sendFaq()">
+        <button id="ai-faq-send" onclick="sendFaq()"><i class="bi bi-send"></i></button>
+    </div>
+</div>
+
+<script>
+let faqOpen = false;
+function toggleFaq() {
+    const panel = document.getElementById('ai-faq-panel');
+    const btn = document.getElementById('ai-faq-btn');
+    faqOpen = !faqOpen;
+    panel.style.display = faqOpen ? 'flex' : 'none';
+    if (faqOpen) {
+        btn.style.display = 'none';
+        document.getElementById('ai-faq-input').focus();
+    } else {
+        btn.style.display = 'flex';
+    }
+}
+function addFaqMessage(text, isUser) {
+    const msgs = document.getElementById('ai-faq-messages');
+    const div = document.createElement('div');
+    div.className = 'ai-faq-msg ' + (isUser ? 'user' : 'bot');
+    div.innerHTML = text;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+async function sendFaq() {
+    const input = document.getElementById('ai-faq-input');
+    const q = input.value.trim();
+    if (!q) return;
+    input.value = '';
+    addFaqMessage(q, true);
+    document.getElementById('ai-faq-send').disabled = true;
+    try {
+        const res = await fetch('/api/ai/faq', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question: q})
+        });
+        const data = await res.json();
+        addFaqMessage(data.answer + '<span class="source-tag"><i class="bi bi-cpu me-1"></i>' + (data.source || 'AI') + '</span>', false);
+    } catch(e) {
+        addFaqMessage('Sorry, I could not process your question. Please try again.', false);
+    }
+    document.getElementById('ai-faq-send').disabled = false;
+}
+function askFaq(q) {
+    document.getElementById('ai-faq-input').value = q;
+    sendFaq();
+}
+</script>
 {% endif %}
 {% endblock %}

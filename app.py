@@ -27,6 +27,10 @@ from app.notifications import (
     send_loan_rejected_notification, send_welcome_notification,
     send_payment_confirmation, run_daily_reminders, get_unread_count
 )
+from app.ai_service import (
+    assess_credit_risk, generate_portfolio_insights,
+    analyze_client, get_faq_response, get_dashboard_ai_data
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'lendflow-secret-key-change-in-production')
@@ -374,7 +378,18 @@ def dashboard():
         return redirect(url_for('client_my_loan'))
     stats = get_dashboard_stats()
     unread = get_unread_count(session['user_id'])
-    return render_template('dashboard.html', stats=stats, unread=unread, greeting=_greeting())
+
+    # AI portfolio insights
+    ai_data = get_dashboard_ai_data(stats)
+
+    return render_template(
+        'dashboard.html',
+        stats=stats,
+        unread=unread,
+        greeting=_greeting(),
+        ai_insights=ai_data['insights'],
+        ai_enabled=ai_data['ai_enabled'],
+    )
 
 @app.route('/reports/profit-loss')
 @login_required
@@ -1423,6 +1438,137 @@ def not_found(e):
 @app.errorhandler(403)
 def forbidden(e):
     return render_template('error.html', code=403, message='Access denied'), 403
+
+# ============ AI FEATURES ============
+
+@app.route('/api/ai/insights')
+@login_required
+def ai_insights():
+    """Return AI portfolio insights for the dashboard."""
+    if session.get('loan_view'):
+        return jsonify({'error': 'Not available in view-only mode'}), 403
+    stats = get_dashboard_stats()
+    data = get_dashboard_ai_data(stats)
+    return jsonify(data)
+
+
+@app.route('/api/ai/risk-score/<int:client_id>')
+@login_required
+def ai_risk_score(client_id):
+    """Return AI credit risk assessment for a client."""
+    if session.get('loan_view'):
+        return jsonify({'error': 'Not available in view-only mode'}), 403
+    conn = get_db()
+    profile = conn.execute(
+        'SELECT * FROM client_profiles WHERE user_id = ?', (client_id,)
+    ).fetchone()
+    user = conn.execute(
+        'SELECT id, full_name, phone FROM users WHERE id = ?', (client_id,)
+    ).fetchone()
+    if not user:
+        conn.close()
+        return jsonify({'error': 'Client not found'}), 404
+
+    # Gather repayment history
+    loans = conn.execute(
+        'SELECT id, status, principal FROM loans WHERE client_id = ?', (client_id,)
+    ).fetchall()
+    active_loans = sum(1 for l in loans if l['status'] == 'active')
+    late_payments = 0
+    repayments = []
+    for loan in loans:
+        rs = conn.execute(
+            'SELECT * FROM repayments WHERE loan_id = ?', (loan['id'],)
+        ).fetchall()
+        for r in rs:
+            repayments.append({
+                'amount': r['amount'],
+                'date': r['created_at'],
+                'on_time': True,  # default — would need due-date comparison
+            })
+        # Count total
+        late_payments += conn.execute(
+            'SELECT COUNT(*) as cnt FROM repayments WHERE loan_id = ?',
+            (loan['id'],)
+        ).fetchone()['cnt']
+    conn.close()
+
+    client_data = dict(profile) if profile else {}
+    client_data['active_loans'] = active_loans
+    client_data['late_payments'] = 0  # simplified
+    client_data['full_name'] = user['full_name']
+
+    result = assess_credit_risk(client_data, repayments)
+    result['client_name'] = user['full_name']
+    return jsonify(result)
+
+
+@app.route('/api/ai/faq', methods=['POST'])
+def ai_faq():
+    """Handle FAQ questions from the client view-only portal."""
+    data = request.get_json() or {}
+    question = data.get('question', '').strip()
+    if not question:
+        return jsonify({'answer': 'Please ask a question.', 'source': 'ai'})
+
+    # If user is in loan_view, provide loan context
+    loan_data = None
+    if session.get('loan_view') and session.get('loan_id'):
+        from app.database import get_loan
+        loan_data = get_loan(session['loan_id'])
+
+    answer = get_faq_response(question, loan_data)
+    return jsonify({'answer': answer, 'source': 'ai (rule engine)'})
+
+
+@app.route('/api/ai/client-analysis/<int:client_id>')
+@login_required
+def ai_client_analysis(client_id):
+    """Return AI analysis of a client."""
+    if session.get('loan_view'):
+        return jsonify({'error': 'Not available in view-only mode'}), 403
+    conn = get_db()
+    profile = conn.execute(
+        'SELECT * FROM client_profiles WHERE user_id = ?', (client_id,)
+    ).fetchone()
+    user = conn.execute(
+        'SELECT * FROM users WHERE id = ?', (client_id,)
+    ).fetchone()
+    if not user:
+        conn.close()
+        return jsonify({'error': 'Client not found'}), 404
+
+    loans = conn.execute(
+        'SELECT * FROM loans WHERE client_id = ? ORDER BY created_at DESC',
+        (client_id,)
+    ).fetchall()
+    repayments = []
+    for loan in loans:
+        rs = conn.execute(
+            'SELECT * FROM repayments WHERE loan_id = ? ORDER BY created_at ASC',
+            (loan['id'],)
+        ).fetchall()
+        for r in rs:
+            repayments.append({
+                'amount': r['amount'],
+                'date': r['created_at'],
+                'on_time': True,
+                'loan': loan['loan_number'],
+            })
+    conn.close()
+
+    client_data = dict(user)
+    if profile:
+        client_data.update(dict(profile))
+
+    result = analyze_client(
+        client_data,
+        [dict(l) for l in loans],
+        repayments,
+    )
+    result['client_name'] = user['full_name']
+    return jsonify(result)
+
 
 if __name__ == '__main__':
     # Railway provides the PORT env var automatically

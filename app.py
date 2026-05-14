@@ -273,8 +273,11 @@ def change_password_route():
     return render_template('change_password.html')
 
 @app.route('/register', methods=['GET', 'POST'])
+@login_required
 @role_required('admin', 'loan_officer')
 def register():
+    generated_creds = None  # track auto-generated credentials to display
+
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
@@ -297,12 +300,14 @@ def register():
                 email = f"{username}@vaulta.local"
             if not password:
                 password = secrets.token_urlsafe(12)  # 16 chars, meets strength reqs
+            generated_creds = {'username': username, 'password': password}
 
         # Validate password strength (skip for auto-generated client passwords)
-        is_valid, error_msg = validate_password_strength(password)
-        if not is_valid:
-            flash(error_msg, 'danger')
-            return render_template('register.html')
+        if not generated_creds:
+            is_valid, error_msg = validate_password_strength(password)
+            if not is_valid:
+                flash(error_msg, 'danger')
+                return render_template('register.html')
 
         # Handle profile picture upload
         profile_picture = None
@@ -319,8 +324,18 @@ def register():
             log_audit(session['user_id'], 'create_user', 'user', user_id, f'Created user: {username}')
             if role == 'client':
                 send_welcome_notification(user_id, full_name)
-            flash(f'User {username} created successfully!', 'success')
-            return redirect(url_for('manage_clients'))
+            # Show generated credentials if any (so admin can share them with the user)
+            if generated_creds:
+                flash(
+                    f'Client "{full_name}" created! '
+                    f'<br><strong>Username:</strong> {generated_creds["username"]}'
+                    f'<br><strong>Password:</strong> {generated_creds["password"]}'
+                    f'<br><small class="text-muted">Share these credentials securely with the client.</small>',
+                    'success'
+                )
+            else:
+                flash(f'User "{username}" created successfully!', 'success')
+            return redirect(url_for('admin_users'))
         else:
             flash('Username or email already exists.', 'danger')
 
@@ -1271,23 +1286,45 @@ def admin_edit_user(user_id):
         return redirect(url_for('admin_users'))
 
     if request.method == 'POST':
+        # ── Handle password reset (standalone form) ──
+        new_password = request.form.get('new_password', '').strip()
+        if new_password:
+            is_valid, error_msg = validate_password_strength(new_password)
+            if not is_valid:
+                flash(f'Password reset failed: {error_msg}', 'danger')
+                return render_template('edit_user.html', user=user)
+            change_password(user_id, new_password)
+            log_audit(session['user_id'], 'reset_password', 'user', user_id,
+                      f'Password reset by admin for user: {user["username"]}')
+            flash(f'Password for "{user["username"]}" has been reset.', 'success')
+            return redirect(url_for('admin_users'))
+
+        # ── Handle profile update (only if profile fields present) ──
         data = {}
         for field in ('username', 'email', 'full_name', 'phone', 'address', 'id_number', 'role'):
             val = request.form.get(field)
             if val is not None:
                 data[field] = val
-        data['is_active'] = 1 if request.form.get('is_active') else 0
+        # Only set is_active if the checkbox was submitted (checked → '1', unchecked → absent)
+        if 'is_active' in request.form:
+            data['is_active'] = 1
+        else:
+            data['is_active'] = 0
 
-        try:
-            update_user(user_id, data)
-            log_audit(session['user_id'], 'update_user', 'user', user_id, f'Updated user: {data.get("username", user["username"])}')
-            flash(f'User {data.get("username", user["username"])} updated successfully.', 'success')
-            return redirect(url_for('admin_users'))
-        except Exception as e:
-            if 'UNIQUE' in str(e):
-                flash('Username or email already exists.', 'danger')
-            else:
-                flash(f'Error updating user: {e}', 'danger')
+        if data:
+            try:
+                update_user(user_id, data)
+                log_audit(session['user_id'], 'update_user', 'user', user_id,
+                          f'Updated user: {data.get("username", user["username"])}')
+                flash(f'User "{data.get("username", user["username"])}" updated successfully.', 'success')
+                return redirect(url_for('admin_users'))
+            except Exception as e:
+                if 'UNIQUE' in str(e):
+                    flash('Username or email already exists.', 'danger')
+                else:
+                    flash(f'Error updating user: {e}', 'danger')
+        else:
+            flash('No changes submitted.', 'info')
 
     return render_template('edit_user.html', user=user)
 

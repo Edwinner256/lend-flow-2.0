@@ -5,7 +5,7 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header">
                 <i class="bi bi-pencil-square me-2 text-gold"></i>Edit User — {{ user.full_name }}
             </div>
@@ -58,6 +58,38 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-lg"></i> Save Changes
                         </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Password Reset Card -->
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-shield-lock me-2 text-gold"></i>Reset Password
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted small mb-3">
+                    Set a new password for <strong>{{ user.full_name }}</strong>.
+                    The user will need to use this new password on their next login.
+                </p>
+                <form method="POST">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label">New Password</label>
+                            <input type="password" name="new_password" class="form-control" placeholder="Enter new password (min 8 chars, upper+lower+digit)">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-warning w-100">
+                                <i class="bi bi-arrow-repeat me-1"></i> Reset Password
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <small class="text-muted">
+                                Password must be at least 8 characters with uppercase, lowercase, and a number.
+                                Leave blank to keep current password.
+                            </small>
+                        </div>
                     </div>
                 </form>
             </div>

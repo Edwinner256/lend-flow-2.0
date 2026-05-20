@@ -5,6 +5,7 @@ This file adapts the Flask app to run on Vercel's Python runtime.
 It handles:
   - Importing the Flask app from the root app.py (avoiding app/ package conflicts)
   - Detecting Vercel environment and adjusting DB path
+  - WARNING: Without DATABASE_URL, SQLite data is LOST on every cold start
 """
 
 import sys
@@ -16,9 +17,16 @@ IS_VERCEL = os.environ.get('VERCEL', '') == '1'
 HAS_DATABASE_URL = os.environ.get('DATABASE_URL', '').startswith('postgres')
 
 if IS_VERCEL and not HAS_DATABASE_URL:
-    # On Vercel without PostgreSQL, use /tmp for SQLite
-    # NOTE: SQLite on Vercel is NOT persistent — data lost on cold start.
-    # Set DATABASE_URL to a PostgreSQL connection string for persistence.
+    # CRITICAL WARNING: SQLite on Vercel is NOT persistent.
+    # All data (users, loans, repayments) is wiped on every serverless cold start.
+    # Set DATABASE_URL environment variable to a PostgreSQL connection string.
+    import warnings
+    warnings.warn(
+        "CRITICAL: Running on Vercel without DATABASE_URL. "
+        "SQLite is stored in /tmp and will be LOST on every cold start. "
+        "Set DATABASE_URL to a PostgreSQL connection string for persistence.",
+        RuntimeWarning, stacklevel=1
+    )
     os.environ.setdefault('DATABASE_PATH', '/tmp/lendflow.db')
 
 # ── Load the Flask app from root app.py ──
@@ -36,15 +44,17 @@ spec.loader.exec_module(mod)
 app = mod.app
 
 # ── Seed database on cold start (Vercel SQLite / fresh PostgreSQL) ──
+# ONLY seed if the database is truly empty (no users AND no loans)
+# This prevents re-seeding over user-created data
 if IS_VERCEL or HAS_DATABASE_URL:
     try:
-        # Check if DB is empty (fresh cold start or empty PostgreSQL)
         from app.database import get_db
         conn = get_db()
-        count = conn.execute('SELECT COUNT(*) FROM loans').fetchone()[0]
+        user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        loan_count = conn.execute('SELECT COUNT(*) FROM loans').fetchone()[0]
         conn.close()
-        if count == 0:
-            # Auto-seed demo data
+        # Only seed if BOTH users and loans are empty (fresh database)
+        if user_count == 0 and loan_count == 0:
             import seed
             seed.seed()
     except Exception:

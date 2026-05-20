@@ -783,13 +783,26 @@ def get_dashboard_stats():
     conn.close()
     return stats
 
-def get_all_users(role=None):
-    """Get all users, optionally filtered by role"""
+def get_all_users(role=None, include_inactive=False):
+    """Get all users, optionally filtered by role.
+
+    Args:
+        role: Filter by role ('admin', 'loan_officer', 'client')
+        include_inactive: If False (default), only returns active users (is_active = 1)
+    """
     conn = get_db()
+    active_filter = '' if include_inactive else 'WHERE is_active = 1'
+
     if role:
-        users = conn.execute('SELECT * FROM users WHERE role = ? ORDER BY created_at DESC', (role,)).fetchall()
+        active_filter = 'WHERE' if not active_filter else 'AND'
+        users = conn.execute(
+            f'SELECT * FROM users {active_filter} role = ? ORDER BY created_at DESC',
+            (role,)
+        ).fetchall()
     else:
-        users = conn.execute('SELECT * FROM users ORDER BY created_at DESC').fetchall()
+        users = conn.execute(
+            f'SELECT * FROM users {active_filter} ORDER BY created_at DESC'
+        ).fetchall()
     conn.close()
     return [dict(u) for u in users]
 
@@ -1760,7 +1773,13 @@ def clear_transactional_data():
 
 def clear_demo_data(keep_admin_ids=None):
     """
-    Delete all demo/seed data from the system while preserving admin users.
+    Delete all demo/seed data from the system while preserving admin users
+    AND all user-created users (non-demo).
+
+    Demo users are identified by their seed usernames:
+      admin, officer, officer2, alice, brian, carol, david, faith, grace
+
+    User-created users (any other usernames) are NEVER deleted by this function.
 
     Args:
         keep_admin_ids: list of user IDs to preserve (defaults to all admin-role users)
@@ -1778,7 +1797,23 @@ def clear_demo_data(keep_admin_ids=None):
     if not keep_admin_ids:
         keep_admin_ids = [1]  # safety fallback
 
-    ids_str = ','.join(str(i) for i in keep_admin_ids)
+    # DEMO USER SAFEGUARD: Only delete users with known demo usernames
+    # This prevents accidental deletion of user-created accounts
+    demo_usernames = ('admin', 'officer', 'officer2', 'alice', 'brian', 'carol',
+                      'david', 'faith', 'grace')
+    placeholders = ','.join('?' for _ in demo_usernames)
+
+    # Get IDs of demo users that exist in the database
+    demo_users = conn.execute(
+        f'SELECT id FROM users WHERE username IN ({placeholders})',
+        demo_usernames
+    ).fetchall()
+    demo_user_ids = [u['id'] for u in demo_users]
+
+    # Combine admin IDs + demo user IDs to keep
+    keep_ids = list(set(keep_admin_ids + demo_user_ids))
+    ids_str = ','.join(str(i) for i in keep_ids)
+
     counts = {}
 
     try:
@@ -1805,8 +1840,8 @@ def clear_demo_data(keep_admin_ids=None):
         # 7. Client profiles (depends on users via FK)
         counts['client_profiles'] = conn.execute('DELETE FROM client_profiles').rowcount
 
-        # 8. Non-admin users (keep admins)
-        counts['users'] = conn.execute(
+        # 8. Only delete DEMO users (keep admins + user-created users)
+        counts['demo_users_deleted'] = conn.execute(
             f'DELETE FROM users WHERE id NOT IN ({ids_str})'
         ).rowcount
 

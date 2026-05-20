@@ -99,6 +99,30 @@ def role_required(*roles):
         return decorated
     return decorator
 
+# ============ HEALTH CHECK ============
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint — verifies database connectivity and persistence mode."""
+    from app.db_adapter import IS_POSTGRES, DB_TYPE
+    try:
+        from app.database import get_db
+        conn = get_db()
+        user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        loan_count = conn.execute('SELECT COUNT(*) FROM loans').fetchone()[0]
+        conn.close()
+        return {
+            'status': 'healthy',
+            'db_type': DB_TYPE,
+            'postgres': IS_POSTGRES,
+            'users': user_count,
+            'loans': loan_count,
+            'warning': 'SQLite on Vercel is NOT persistent — set DATABASE_URL for production'
+                if not IS_POSTGRES else None
+        }
+    except Exception as e:
+        return {'status': 'unhealthy', 'error': str(e)}, 500
+
 # ============ AUTH ROUTES ============
 
 @app.route('/')
@@ -1273,7 +1297,8 @@ def sms_test():
 @role_required('admin')
 def admin_users():
     role_filter = request.args.get('role')
-    users = get_all_users(role=role_filter) if role_filter else get_all_users()
+    # Admin page shows ALL users (active + inactive) for full management
+    users = get_all_users(role=role_filter, include_inactive=True) if role_filter else get_all_users(include_inactive=True)
     return render_template('admin_users.html', users=users, role_filter=role_filter)
 
 @app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])

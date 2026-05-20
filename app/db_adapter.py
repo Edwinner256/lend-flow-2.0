@@ -20,7 +20,8 @@ import sqlite3
 
 # ── Detect database type ────────────────────────────────────────
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
-IS_POSTGRES = DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://')
+# Only use PostgreSQL if URL is set AND psycopg2 is available
+IS_POSTGRES = (DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://'))
 DB_TYPE = 'postgres' if IS_POSTGRES else 'sqlite'
 
 # Lazy import psycopg2 only when needed (avoids crash on Vercel if not installed)
@@ -48,6 +49,18 @@ def _ensure_psycopg2():
             _psycopg2_available = False
             raise
     return _psycopg2, _psycopg2_errors
+
+# Check psycopg2 availability at module load time (but don't fail if unavailable)
+try:
+    import psycopg2
+    _psycopg2_available = True
+    print("✅ psycopg2 available at module load")
+except ImportError:
+    _psycopg2_available = False
+    print("⚠️  psycopg2 not available at module load - will use SQLite fallback")
+    # If psycopg2 isn't available, force SQLite even if DATABASE_URL is set
+    IS_POSTGRES = False
+    DB_TYPE = 'sqlite'
 
 # ── Database path (SQLite only) ─────────────────────────────────
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

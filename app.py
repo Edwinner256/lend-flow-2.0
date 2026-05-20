@@ -42,7 +42,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['SESSION_COOKIE_HTTPONLY'] = True       # Prevent XSS access to session cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'      # CSRF protection
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)  # Session expires after 8h
-app.config['SESSION_COOKIE_SECURE'] = False         # Set True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'  # True in production with HTTPS
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 # Login security

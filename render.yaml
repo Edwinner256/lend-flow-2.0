@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: lendflow
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: FLASK_ENV
+        value: production
+      - key: SMS_MOCK_MODE
+        value: "True"

@@ -55,6 +55,10 @@ def allowed_file(filename):
 # Initialize database
 init_db()
 
+# Ensure superuser admin account exists
+from app.database import ensure_admin_exists
+ensure_admin_exists(username='admin', password='admin123?Vaulta')
+
 # ============ AUTH DECORATORS ============
 
 def _greeting():

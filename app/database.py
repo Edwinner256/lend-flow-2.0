@@ -280,6 +280,36 @@ def create_user(username, email, password, role, full_name, phone=None, address=
     finally:
         conn.close()
 
+def ensure_admin_exists(username='admin', password='admin123?Vaulta', email='admin@vaulta.local', full_name='System Admin'):
+    """
+    Ensure the superuser admin account exists with the specified credentials.
+    Creates the admin if it doesn't exist, or updates the password if it does.
+    This runs on every startup to guarantee admin access.
+    """
+    conn = get_db()
+    try:
+        existing = conn.execute('SELECT id, password_hash FROM users WHERE username = ?', (username,)).fetchone()
+        if existing:
+            # Admin exists — update password to ensure it matches
+            new_hash = generate_password_hash(password, method='pbkdf2:sha256')
+            conn.execute('UPDATE users SET password_hash = ?, role = ?, is_active = 1 WHERE id = ?',
+                        (new_hash, 'admin', existing['id']))
+            conn.commit()
+            print(f"✅ Admin user '{username}' verified (password updated)")
+        else:
+            # Admin doesn't exist — create it
+            password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+            conn.execute(
+                'INSERT INTO users (username, email, password_hash, role, full_name, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+                (username, email, password_hash, 'admin', full_name)
+            )
+            conn.commit()
+            print(f"✅ Admin user '{username}' created successfully")
+    except Exception as e:
+        print(f"⚠️  Admin setup warning: {e}")
+    finally:
+        conn.close()
+
 def update_user_profile_picture(user_id, filename):
     """Update user profile picture"""
     conn = get_db()

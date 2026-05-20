@@ -43,6 +43,10 @@ spec.loader.exec_module(mod)
 # Expose the Flask app for Vercel
 app = mod.app
 
-# ── NO AUTO-SEEDING ──
-# Demo data seeding is permanently disabled.
-# The system starts with a clean database. Admin must create users manually.
+# ── Ensure Admin User Exists ──
+# Creates or verifies the superuser admin account on every startup
+try:
+    from app.database import ensure_admin_exists
+    ensure_admin_exists(username='admin', password='admin123?Vaulta')
+except Exception as e:
+    print(f"⚠️  Admin setup failed: {e}")

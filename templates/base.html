@@ -319,6 +319,9 @@
             <a href="{{ url_for('profit_loss_report') }}" class="{% if request.endpoint == 'profit_loss_report' %}active{% endif %}">
                 <i class="bi bi-file-earmark-bar-graph"></i> Profit & Loss
             </a>
+            <a href="{{ url_for('admin_clear_demo_data') }}" class="{% if request.endpoint == 'admin_clear_demo_data' %}active{% endif %}">
+                <i class="bi bi-trash3"></i> Clear Demo Data
+            </a>
             {% endif %}
         </nav>
         <div class="sidebar-footer">

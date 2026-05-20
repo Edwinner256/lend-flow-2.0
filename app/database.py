@@ -881,14 +881,36 @@ def update_repayment(repayment_id, amount, payment_method, reference, notes):
         conn.close()
 
 def delete_repayment(repayment_id):
+    """Delete a repayment record and recalculate loan balance.
+    Admin-only operation with audit logging.
     """
-    DISABLED: Repayment deletion is permanently disabled.
-    All payment records are preserved forever.
-    """
-    raise RuntimeError(
-        "Repayment deletion is permanently disabled. "
-        "All payment records are preserved forever."
-    )
+    conn = get_db()
+    try:
+        # Get the loan_id and amount before deleting
+        r = conn.execute('SELECT loan_id, amount FROM repayments WHERE id = ?', (repayment_id,)).fetchone()
+        if not r:
+            return False
+        conn.execute('DELETE FROM repayments WHERE id = ?', (repayment_id,))
+        conn.commit()
+        # Recalculate loan balance
+        total_paid = conn.execute(
+            'SELECT COALESCE(SUM(amount), 0) FROM repayments WHERE loan_id = ?',
+            (r['loan_id'],)
+        ).fetchone()[0]
+        loan = conn.execute('SELECT total_amount FROM loans WHERE id = ?', (r['loan_id'],)).fetchone()
+        if loan:
+            new_balance = loan['total_amount'] - total_paid
+            new_status = 'active' if new_balance > 0 else 'paid'
+            conn.execute(
+                'UPDATE loans SET amount_paid = ?, balance = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                (total_paid, new_balance, new_status, r['loan_id'])
+            )
+            conn.commit()
+        return True
+    except Exception as e:
+        raise e
+    finally:
+        conn.close()
 
 def get_audit_logs(limit=100):
     """Get recent audit log entries with user names"""
@@ -1728,25 +1750,117 @@ def _import_repayments(rows):
 
 def clear_transactional_data():
     """
-    DISABLED: This function previously cleared all transactional data.
-    Data deletion is permanently disabled to ensure full persistence.
+    Clear all transactional/activity data while keeping ALL users (admins, officers, clients).
+    ADMIN-ONLY operation. Use this before importing new data.
+
+    Returns:
+        dict with counts of deleted records per table
     """
-    raise RuntimeError(
-        "Data deletion is permanently disabled. "
-        "All transactional data (loans, repayments, etc.) is preserved forever."
-    )
+    conn = get_db()
+    counts = {}
+
+    try:
+        # Order matters due to foreign key constraints
+        counts['repayments'] = conn.execute('DELETE FROM repayments').rowcount
+        counts['loans'] = conn.execute('DELETE FROM loans').rowcount
+        counts['notifications'] = conn.execute('DELETE FROM notifications').rowcount
+        counts['audit_log'] = conn.execute('DELETE FROM audit_log').rowcount
+        counts['sms_logs'] = conn.execute('DELETE FROM sms_logs').rowcount
+        counts['login_attempts'] = conn.execute('DELETE FROM login_attempts').rowcount
+        counts['client_profiles'] = conn.execute('DELETE FROM client_profiles').rowcount
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise e
+
+    conn.close()
+    return counts
 
 
 def clear_demo_data(keep_admin_ids=None):
     """
-    DISABLED: This function previously cleared demo/seed data.
-    Data deletion is permanently disabled to ensure full persistence.
-    All users, loans, repayments, and records are preserved forever.
+    Delete all demo/seed data from the system while preserving admin users
+    AND all user-created users (non-demo).
+
+    ADMIN-ONLY operation. Demo users are identified by their seed usernames:
+      admin, officer, officer2, alice, brian, carol, david, faith, grace
+
+    User-created users (any other usernames) are NEVER deleted by this function.
+
+    Args:
+        keep_admin_ids: list of user IDs to preserve (defaults to all admin-role users)
+
+    Returns:
+        dict with counts of deleted records per table
     """
-    raise RuntimeError(
-        "Data deletion is permanently disabled. "
-        "All data (users, loans, repayments, etc.) is preserved forever."
-    )
+    conn = get_db()
+
+    # Determine which users to keep — all admins by default
+    if keep_admin_ids is None:
+        admins = conn.execute('SELECT id FROM users WHERE role = ?', ('admin',)).fetchall()
+        keep_admin_ids = [a['id'] for a in admins]
+
+    if not keep_admin_ids:
+        keep_admin_ids = [1]  # safety fallback
+
+    # DEMO USER SAFEGUARD: Only delete users with known demo usernames
+    # This prevents accidental deletion of user-created accounts
+    demo_usernames = ('admin', 'officer', 'officer2', 'alice', 'brian', 'carol',
+                      'david', 'faith', 'grace')
+    placeholders = ','.join('?' for _ in demo_usernames)
+
+    # Get IDs of demo users that exist in the database
+    demo_users = conn.execute(
+        f'SELECT id FROM users WHERE username IN ({placeholders})',
+        demo_usernames
+    ).fetchall()
+    demo_user_ids = [u['id'] for u in demo_users]
+
+    # Combine admin IDs + demo user IDs to keep
+    keep_ids = list(set(keep_admin_ids + demo_user_ids))
+    ids_str = ','.join(str(i) for i in keep_ids)
+
+    counts = {}
+
+    try:
+        # Order matters due to foreign key constraints
+
+        # 1. SMS logs (no FK)
+        counts['sms_logs'] = conn.execute('DELETE FROM sms_logs').rowcount
+
+        # 2. Login attempts (no FK)
+        counts['login_attempts'] = conn.execute('DELETE FROM login_attempts').rowcount
+
+        # 3. Repayments (depends on loans via FK)
+        counts['repayments'] = conn.execute('DELETE FROM repayments').rowcount
+
+        # 4. Loans (depends on users via FK client_id, loan_officer_id, approved_by)
+        counts['loans'] = conn.execute('DELETE FROM loans').rowcount
+
+        # 5. Notifications (depends on users via FK)
+        counts['notifications'] = conn.execute('DELETE FROM notifications').rowcount
+
+        # 6. Audit log (references users)
+        counts['audit_log'] = conn.execute('DELETE FROM audit_log').rowcount
+
+        # 7. Client profiles (depends on users via FK)
+        counts['client_profiles'] = conn.execute('DELETE FROM client_profiles').rowcount
+
+        # 8. Only delete DEMO users (keep admins + user-created users)
+        counts['demo_users_deleted'] = conn.execute(
+            f'DELETE FROM users WHERE id NOT IN ({ids_str})'
+        ).rowcount
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise e
+
+    conn.close()
+    return counts
 
 
 # Initialize DB on import

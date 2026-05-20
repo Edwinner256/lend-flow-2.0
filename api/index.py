@@ -5,6 +5,7 @@ This file adapts the Flask app to run on Vercel's Python runtime.
 It handles:
   - Importing the Flask app from the root app.py (avoiding app/ package conflicts)
   - Detecting Vercel environment and adjusting DB path
+  - PostgreSQL persistence via DATABASE_URL (Neon DB)
   - WARNING: Without DATABASE_URL, SQLite data is LOST on every cold start
 """
 

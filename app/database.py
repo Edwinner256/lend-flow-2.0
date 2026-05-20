@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.db_adapter import (
-    get_db, IS_POSTGRES, DB_PATH, IntegrityError,
+    get_db, IS_POSTGRES, DB_PATH, _get_integrity_error,
     translate_ddl, translate_date, is_pragma
 )
 
@@ -275,7 +275,7 @@ def create_user(username, email, password, role, full_name, phone=None, address=
         user_id = cursor.fetchone()[0]
         conn.commit()
         return user_id
-    except IntegrityError:
+    except _get_integrity_error():
         return None
     finally:
         conn.close()

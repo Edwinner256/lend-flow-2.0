@@ -23,9 +23,19 @@ DATABASE_URL = os.environ.get('DATABASE_URL', '')
 IS_POSTGRES = DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://')
 DB_TYPE = 'postgres' if IS_POSTGRES else 'sqlite'
 
-if IS_POSTGRES:
-    import psycopg2
-    import psycopg2.extras
+# Lazy import psycopg2 only when needed (avoids crash on Vercel if not installed)
+_psycopg2 = None
+_psycopg2_errors = None
+
+def _ensure_psycopg2():
+    """Lazy-load psycopg2. Raises ImportError if unavailable."""
+    global _psycopg2, _psycopg2_errors
+    if _psycopg2 is None:
+        import psycopg2 as _pg
+        import psycopg2.errors as _pg_err
+        _psycopg2 = _pg
+        _psycopg2_errors = _pg_err
+    return _psycopg2, _psycopg2_errors
 
 # ── Database path (SQLite only) ─────────────────────────────────
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -229,7 +239,8 @@ def get_db():
       - row['column'] / row[0] access
     """
     if IS_POSTGRES:
-        conn = psycopg2.connect(DATABASE_URL)
+        pg, pg_err = _ensure_psycopg2()
+        conn = pg.connect(DATABASE_URL)
         conn.autocommit = False
         return PgConnection(conn)
     else:
@@ -254,7 +265,12 @@ def init_db():
 #  Export symbols used by database.py
 # ═══════════════════════════════════════════════════════════════
 IntegrityError = sqlite3.IntegrityError
-if IS_POSTGRES:
-    IntegrityError = psycopg2.errors.IntegrityError
+
+def _get_integrity_error():
+    """Get the appropriate IntegrityError class (lazy for psycopg2)."""
+    if IS_POSTGRES:
+        _, pg_err = _ensure_psycopg2()
+        return pg_err.IntegrityError
+    return sqlite3.IntegrityError
 
 Row = sqlite3.Row  # fallback — we use our own wrappers for PG

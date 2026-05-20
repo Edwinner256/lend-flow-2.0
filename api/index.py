@@ -65,3 +65,4 @@ if 'app' not in globals():
 # except Exception as e:
 #     print(f"⚠️  Admin setup failed: {e}")
 #     traceback.print_exc()
+# trigger redeploy

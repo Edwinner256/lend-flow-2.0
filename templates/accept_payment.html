@@ -89,12 +89,8 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Reference / Transaction ID</label>
-                            <div class="input-group">
-                                <input type="text" name="reference" id="refInput" class="form-control" placeholder="Auto-generated" readonly>
-                                <button type="button" class="btn btn-outline-secondary" onclick="generateRef()" title="Generate new reference">
-                                    <i class="bi bi-arrow-repeat"></i>
-                                </button>
-                            </div>
+                            <input type="text" name="reference" id="refInput" class="form-control" readonly style="background-color: var(--card-bg, #f8f9fa); cursor: not-allowed;">
+                            <small class="text-muted">Auto-generated — cannot be edited</small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Notes</label>
@@ -156,8 +152,8 @@
 </div>
 
 <script>
-// ── Auto-generate reference ID ──
-function generateRef() {
+// ── Auto-generate reference ID (read-only, no refresh) ──
+(function() {
     const now = new Date();
     const ds = now.getFullYear() +
         String(now.getMonth()+1).padStart(2,'0') +
@@ -165,8 +161,7 @@ function generateRef() {
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
     const ref = `PAY-${ds}-${rand}`;
     document.getElementById('refInput').value = ref;
-}
-generateRef();
+})();
 
 // ── Loan selection auto-fill ──
 const loanSelect = document.getElementById('loanSelect');

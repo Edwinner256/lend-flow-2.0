@@ -57,11 +57,11 @@ except Exception as e:
 if 'app' not in globals():
     app = mod.app
 
-# ── Ensure Admin User Exists ──
-try:
-    from app.database import ensure_admin_exists
-    ensure_admin_exists(username='admin', password='admin123?Vaulta')
-    print("✅ Admin setup complete")
-except Exception as e:
-    print(f"⚠️  Admin setup failed: {e}")
-    traceback.print_exc()
+# ── SKIP Admin User Exists for testing ──
+# try:
+#     from app.database import ensure_admin_exists
+#     ensure_admin_exists(username='admin', password='admin123?Vaulta')
+#     print("✅ Admin setup complete")
+# except Exception as e:
+#     print(f"⚠️  Admin setup failed: {e}")
+#     traceback.print_exc()

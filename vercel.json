@@ -1,14 +1,19 @@
 {
   "builds": [
     {
-      "src": "api/minimal.py",
+      "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "api/minimal.py"
+      "dest": "api/index.py"
     }
-  ]
+  ],
+  "env": {
+    "VERCEL": "1",
+    "FLASK_ENV": "production",
+    "SMS_MOCK_MODE": "True"
+  }
 }

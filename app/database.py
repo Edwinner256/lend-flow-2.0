@@ -791,18 +791,24 @@ def get_all_users(role=None, include_inactive=False):
         include_inactive: If False (default), only returns active users (is_active = 1)
     """
     conn = get_db()
-    active_filter = '' if include_inactive else 'WHERE is_active = 1'
+
+    conditions = []
+    params = []
+
+    if not include_inactive:
+        conditions.append('is_active = 1')
 
     if role:
-        active_filter = 'WHERE' if not active_filter else 'AND'
-        users = conn.execute(
-            f'SELECT * FROM users {active_filter} role = ? ORDER BY created_at DESC',
-            (role,)
-        ).fetchall()
-    else:
-        users = conn.execute(
-            f'SELECT * FROM users {active_filter} ORDER BY created_at DESC'
-        ).fetchall()
+        conditions.append('role = ?')
+        params.append(role)
+
+    where_clause = ''
+    if conditions:
+        where_clause = 'WHERE ' + ' AND '.join(conditions)
+
+    sql = f'SELECT * FROM users {where_clause} ORDER BY created_at DESC'
+    users = conn.execute(sql, params).fetchall() if params else conn.execute(sql).fetchall()
+
     conn.close()
     return [dict(u) for u in users]
 

@@ -315,11 +315,22 @@ def register():
         # Auto-generate credentials for clients (fields are disabled in the form)
         if role == 'client' and (not username or not email or not password):
             import secrets, re
-            base = re.sub(r'[^a-zA-Z0-9]', '', (full_name or 'client').lower())
-            base = base[:12] or 'client'
-            suffix = secrets.token_hex(3)
+            # Extract first name from full_name for username
+            first_name = (full_name or 'client').strip().split()[0].lower()
+            first_name = re.sub(r'[^a-z0-9]', '', first_name) or 'client'
+
+            # Generate unique username: first_name, first_name2, first_name3, etc.
             if not username:
-                username = f"{base}_{suffix}"
+                from app.database import get_db
+                conn = get_db()
+                base_username = first_name
+                username = base_username
+                counter = 2
+                while conn.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+                conn.close()
+
             if not email:
                 email = f"{username}@vaulta.local"
             if not password:

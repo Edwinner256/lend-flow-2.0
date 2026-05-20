@@ -372,9 +372,9 @@
                                     <label class="form-label">Username</label>
                                     <div class="input-icon-wrap">
                                         <i class="bi bi-person input-icon"></i>
-                                        <input type="text" name="username" id="reg-username" class="form-control" placeholder="Choose a unique username" required autofocus>
+                                        <input type="text" name="username" id="reg-username" class="form-control" placeholder="Auto-generated from first name" readonly>
                                     </div>
-                                    <small id="username-helper" class="text-muted" style="font-size:11px;display:none">Auto-generated for clients</small>
+                                    <small id="username-helper" class="text-muted" style="font-size:11px">Auto-generated from client's first name (e.g. "winnie")</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Email</label>
@@ -555,6 +555,23 @@ document.querySelectorAll('input[name="role"]').forEach(radio => {
 
 // Run on page load (client is default checked)
 toggleCredFields(true);
+
+// ── Auto-generate username preview from first name ──
+const fullNameInput = document.querySelector('input[name="full_name"]');
+const usernameInput = document.getElementById('reg-username');
+
+if (fullNameInput && usernameInput) {
+    fullNameInput.addEventListener('input', function() {
+        // Only auto-generate for client role
+        const isClient = document.querySelector('input[name="role"]:checked')?.value === 'client';
+        if (!isClient) return;
+
+        const firstName = this.value.trim().split(/\s+/)[0] || '';
+        const cleanName = firstName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        usernameInput.value = cleanName || '';
+        usernameInput.placeholder = cleanName ? `Will be: ${cleanName}` : 'Auto-generated from first name';
+    });
+}
 
 // ── Password visibility toggle ──
 document.querySelectorAll('.toggle-pw').forEach(btn => {

@@ -71,6 +71,17 @@ def init_db():
         )
     '''))
 
+    # Add missing columns to client_profiles if they don't exist (migration for older DBs)
+    for col in ('mpesa_number', 'notes', 'bank_name', 'bank_account', 'credit_score', 'next_of_kin', 'next_of_kin_phone'):
+        try:
+            cursor.execute(f'ALTER TABLE client_profiles ADD COLUMN {col} TEXT')
+        except:
+            pass
+    try:
+        cursor.execute('ALTER TABLE client_profiles ADD COLUMN monthly_income REAL')
+    except:
+        pass
+
     # Loans - Enhanced
     cursor.execute(_ddl('''
         CREATE TABLE IF NOT EXISTS loans (

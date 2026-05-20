@@ -712,23 +712,34 @@ def client_profile(client_id):
 @role_required('admin', 'loan_officer')
 def edit_client(client_id):
     user = get_user_by_id(client_id)
+    if not user:
+        flash('Client not found.', 'danger')
+        return redirect(url_for('manage_clients'))
+
+    if user['role'] != 'client':
+        flash('This user is not a client.', 'danger')
+        return redirect(url_for('manage_clients'))
+
     profile = get_client_profile(client_id)
 
     if request.method == 'POST':
-        update_client_profile(client_id,
-            employer=request.form.get('employer'),
-            monthly_income=float(request.form.get('monthly_income', 0)),
-            credit_score=int(request.form.get('credit_score', 0)),
-            next_of_kin=request.form.get('next_of_kin'),
-            next_of_kin_phone=request.form.get('next_of_kin_phone'),
-            bank_name=request.form.get('bank_name'),
-            bank_account=request.form.get('bank_account'),
-            mpesa_number=request.form.get('mpesa_number'),
-            notes=request.form.get('notes')
-        )
-        log_audit(session['user_id'], 'update_profile', 'client', client_id)
-        flash('Client profile updated!', 'success')
-        return redirect(url_for('client_profile', client_id=client_id))
+        try:
+            update_client_profile(client_id,
+                employer=request.form.get('employer'),
+                monthly_income=float(request.form.get('monthly_income', 0) or 0),
+                credit_score=int(request.form.get('credit_score', 0) or 0),
+                next_of_kin=request.form.get('next_of_kin'),
+                next_of_kin_phone=request.form.get('next_of_kin_phone'),
+                bank_name=request.form.get('bank_name'),
+                bank_account=request.form.get('bank_account'),
+                mpesa_number=request.form.get('mpesa_number'),
+                notes=request.form.get('notes')
+            )
+            log_audit(session['user_id'], 'update_profile', 'client', client_id)
+            flash('Client profile updated!', 'success')
+            return redirect(url_for('client_profile', client_id=client_id))
+        except Exception as e:
+            flash(f'Error updating profile: {str(e)}', 'danger')
 
     return render_template('edit_client.html', user=user, profile=profile)
 

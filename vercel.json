@@ -1,22 +1,14 @@
 {
   "builds": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
+      "src": "api/minimal.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "api/index.py"
+      "dest": "api/minimal.py"
     }
-  ],
-  "env": {
-    "VERCEL": "1",
-    "FLASK_ENV": "production",
-    "SMS_MOCK_MODE": "True"
-  }
+  ]
 }

@@ -24,16 +24,6 @@ if HAS_DATABASE_URL:
     print(f"🔍 DATABASE_URL starts with: {os.environ.get('DATABASE_URL', '')[:30]}...")
 
 if IS_VERCEL and not HAS_DATABASE_URL:
-    # CRITICAL WARNING: SQLite on Vercel is NOT persistent.
-    # All data (users, loans, repayments) is wiped on every serverless cold start.
-    # Set DATABASE_URL environment variable to a PostgreSQL connection string.
-    import warnings
-    warnings.warn(
-        "CRITICAL: Running on Vercel without DATABASE_URL. "
-        "SQLite is stored in /tmp and will be LOST on every cold start. "
-        "Set DATABASE_URL to a PostgreSQL connection string for persistence.",
-        RuntimeWarning, stacklevel=1
-    )
     os.environ.setdefault('DATABASE_PATH', '/tmp/lendflow.db')
 
 # ── Load the Flask app from root app.py ──
@@ -51,13 +41,23 @@ try:
 except Exception as e:
     print(f"❌ Failed to load app.py: {e}")
     traceback.print_exc()
-    raise
+    # Create a minimal fallback app
+    from flask import Flask
+    app = Flask(__name__)
+    
+    @app.route('/health')
+    def health():
+        return {'status': 'error', 'detail': str(e), 'traceback': traceback.format_exc()}
+    
+    @app.route('/<path:path>')
+    def catch_all(path):
+        return {'status': 'error', 'detail': 'App failed to load', 'traceback': traceback.format_exc()}, 500
 
 # Expose the Flask app for Vercel
-app = mod.app
+if 'app' not in globals():
+    app = mod.app
 
 # ── Ensure Admin User Exists ──
-# Creates or verifies the superuser admin account on every startup
 try:
     from app.database import ensure_admin_exists
     ensure_admin_exists(username='admin', password='admin123?Vaulta')

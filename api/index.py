@@ -2,11 +2,6 @@
 Vercel Serverless Entry Point for LendFlow
 
 This file adapts the Flask app to run on Vercel's Python runtime.
-It handles:
-  - Importing the Flask app from the root app.py (avoiding app/ package conflicts)
-  - Detecting Vercel environment and adjusting DB path
-  - PostgreSQL persistence via DATABASE_URL (Neon DB)
-  - WARNING: Without DATABASE_URL, SQLite data is LOST on every cold start
 """
 
 import sys
@@ -20,8 +15,6 @@ HAS_DATABASE_URL = os.environ.get('DATABASE_URL', '').startswith('postgres')
 
 print(f"🔍 Vercel env: VERCEL={os.environ.get('VERCEL', 'not set')}")
 print(f"🔍 DATABASE_URL present: {bool(HAS_DATABASE_URL)}")
-if HAS_DATABASE_URL:
-    print(f"🔍 DATABASE_URL starts with: {os.environ.get('DATABASE_URL', '')[:30]}...")
 
 if IS_VERCEL and not HAS_DATABASE_URL:
     os.environ.setdefault('DATABASE_PATH', '/tmp/lendflow.db')
@@ -41,7 +34,6 @@ try:
 except Exception as e:
     print(f"❌ Failed to load app.py: {e}")
     traceback.print_exc()
-    # Create a minimal fallback app
     from flask import Flask
     app = Flask(__name__)
     
@@ -51,18 +43,14 @@ except Exception as e:
     
     @app.route('/<path:path>')
     def catch_all(path):
-        return {'status': 'error', 'detail': 'App failed to load', 'traceback': traceback.format_exc()}, 500
-
-# Expose the Flask app for Vercel
-if 'app' not in globals():
+        return {'status': 'error', 'detail': 'App failed to load'}, 500
+    # Skip admin setup if app failed to load
+else:
     app = mod.app
-
-# ── SKIP Admin User Exists for testing ──
-# try:
-#     from app.database import ensure_admin_exists
-#     ensure_admin_exists(username='admin', password='admin123?Vaulta')
-#     print("✅ Admin setup complete")
-# except Exception as e:
-#     print(f"⚠️  Admin setup failed: {e}")
-#     traceback.print_exc()
-# trigger redeploy
+    # ── Ensure Admin User Exists ──
+    try:
+        from app.database import ensure_admin_exists
+        ensure_admin_exists(username='admin', password='admin123?Vaulta')
+        print("✅ Admin setup complete")
+    except Exception as e:
+        print(f"⚠️  Admin setup failed: {e}")

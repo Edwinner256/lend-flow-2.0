@@ -26,15 +26,27 @@ DB_TYPE = 'postgres' if IS_POSTGRES else 'sqlite'
 # Lazy import psycopg2 only when needed (avoids crash on Vercel if not installed)
 _psycopg2 = None
 _psycopg2_errors = None
+_psycopg2_available = None  # None = not checked yet, True/False = result
 
 def _ensure_psycopg2():
-    """Lazy-load psycopg2. Raises ImportError if unavailable."""
-    global _psycopg2, _psycopg2_errors
+    """Lazy-load psycopg2. Returns (psycopg2, psycopg2.errors) or raises ImportError."""
+    global _psycopg2, _psycopg2_errors, _psycopg2_available
+    
+    if _psycopg2_available is False:
+        raise ImportError("psycopg2 is not available")
+    
     if _psycopg2 is None:
-        import psycopg2 as _pg
-        import psycopg2.errors as _pg_err
-        _psycopg2 = _pg
-        _psycopg2_errors = _pg_err
+        try:
+            import psycopg2 as _pg
+            import psycopg2.errors as _pg_err
+            _psycopg2 = _pg
+            _psycopg2_errors = _pg_err
+            _psycopg2_available = True
+            print("✅ psycopg2 loaded successfully")
+        except Exception as e:
+            print(f"⚠️  psycopg2 import failed: {e}")
+            _psycopg2_available = False
+            raise
     return _psycopg2, _psycopg2_errors
 
 # ── Database path (SQLite only) ─────────────────────────────────
@@ -239,10 +251,20 @@ def get_db():
       - row['column'] / row[0] access
     """
     if IS_POSTGRES:
-        pg, pg_err = _ensure_psycopg2()
-        conn = pg.connect(DATABASE_URL)
-        conn.autocommit = False
-        return PgConnection(conn)
+        try:
+            pg, pg_err = _ensure_psycopg2()
+            conn = pg.connect(DATABASE_URL)
+            conn.autocommit = False
+            return PgConnection(conn)
+        except Exception as e:
+            print(f"⚠️  PostgreSQL connection failed: {e}")
+            print("🔄 Falling back to SQLite for this request")
+            # Fall back to SQLite if PostgreSQL fails
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
+            return conn
     else:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -268,9 +290,12 @@ IntegrityError = sqlite3.IntegrityError
 
 def _get_integrity_error():
     """Get the appropriate IntegrityError class (lazy for psycopg2)."""
-    if IS_POSTGRES:
-        _, pg_err = _ensure_psycopg2()
-        return pg_err.IntegrityError
+    if IS_POSTGRES and _psycopg2_available:
+        try:
+            _, pg_err = _ensure_psycopg2()
+            return pg_err.IntegrityError
+        except:
+            pass
     return sqlite3.IntegrityError
 
 Row = sqlite3.Row  # fallback — we use our own wrappers for PG

@@ -20,7 +20,7 @@ from app.database import (
     calculate_payment_schedule, get_monthly_pnl, get_balance_sheet, get_db,
     record_login_attempt, is_account_locked, change_password, get_failed_attempts,
     update_user, delete_user, get_all_repayments, update_repayment,
-    delete_repayment, get_audit_logs, clear_demo_data
+    get_audit_logs
 )
 from app.notifications import (
     send_payment_reminder, send_loan_approved_notification,
@@ -48,6 +48,28 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 # Login security
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_DURATION = timedelta(minutes=15)
+
+# ============ DATA PROTECTION MIDDLEWARE ============
+# Permanently blocks all data deletion operations in production.
+# This ensures NO data entered into the system is ever deleted.
+
+@app.before_request
+def protect_data():
+    """Block any request that attempts to delete or clear data."""
+    # List of permanently disabled deletion endpoints
+    blocked_endpoints = {
+        'admin_clear_demo_data',
+        'admin_clear_transactional_data',
+    }
+
+    if request.endpoint in blocked_endpoints:
+        flash('Data deletion is permanently disabled. All records are preserved.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    # Block any direct DELETE SQL patterns in query params (extra safety)
+    if any(kw in request.args for kw in ['clear_data', 'delete_all', 'drop_tables']):
+        flash('This operation is not allowed.', 'danger')
+        return redirect(url_for('dashboard'))
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -1040,25 +1062,9 @@ def edit_loan(loan_id):
 @login_required
 @role_required('admin')
 def delete_loan(loan_id):
-    loan = get_loan(loan_id)
-    if not loan:
-        flash('Loan not found.', 'danger')
-        return redirect(url_for('manage_loans'))
-
-    # Check if loan has repayments
-    repayments = get_repayments(loan_id)
-    if repayments:
-        flash('Cannot delete loan with existing repayments. Please delete repayments first.', 'danger')
-        return redirect(url_for('loan_detail', loan_id=loan_id))
-
-    conn = get_db()
-    conn.execute('DELETE FROM loans WHERE id = ?', (loan_id,))
-    conn.commit()
-    conn.close()
-
-    log_audit(session['user_id'], 'delete_loan', 'loan', loan_id, f'Deleted loan {loan["loan_number"]}')
-    flash(f'Loan {loan["loan_number"]} deleted successfully!', 'success')
-    return redirect(url_for('manage_loans'))
+    """Loan deletion is permanently disabled. Data is never deleted."""
+    flash('Loan deletion is disabled. All loan records are permanently preserved.', 'warning')
+    return redirect(url_for('loan_detail', loan_id=loan_id))
 
 # ============ NOTIFICATIONS ============
 
@@ -1119,14 +1125,6 @@ def admin_upload():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
 
-        # Optionally replace all existing data before import
-        replace_data = request.form.get('replace_data') == '1'
-        cleared_counts = None
-        if replace_data:
-            from app.database import clear_transactional_data
-            cleared_counts = clear_transactional_data()
-            flash(f'Existing loans, repayments, and activity cleared ({sum(cleared_counts.values())} records removed). Users preserved.', 'info')
-
         # Process the file
         from app.database import import_data_file
         result = import_data_file(filepath, ext)
@@ -1135,14 +1133,9 @@ def admin_upload():
         os.remove(filepath)
 
         if result['success']:
-            msg = result['message']
-            if cleared_counts:
-                parts = [f'{v} {k}' for k, v in cleared_counts.items() if v > 0]
-                msg += f' (replaced {sum(cleared_counts.values())} old records)'
-            flash(f"Import successful! {msg}", 'success')
+            flash(f"Import successful! {result['message']}", 'success')
             log_audit(session['user_id'], 'data_import', 'file',
-                      details=f"Imported {filename}: {result['message']}" +
-                              (f' (replaced {sum(cleared_counts.values())} old records)' if cleared_counts else ''))
+                      details=f"Imported {filename}: {result['message']}")
         else:
             flash(f"Import failed: {result['message']}", 'danger')
 
@@ -1172,33 +1165,9 @@ def download_template(template_type):
         headers={'Content-Disposition': f'attachment; filename=vaulta_{template_type}_template.csv'}
     )
 
-# ============ CLEAR DEMO DATA ============
-
-@app.route('/admin/clear-demo-data', methods=['GET', 'POST'])
-@login_required
-@role_required('admin')
-def admin_clear_demo_data():
-    """Clear all demo/seed data from the system while preserving admin users."""
-    if request.method == 'POST':
-        confirm = request.form.get('confirm', '').strip()
-        if confirm != 'CLEAR':
-            flash('Please type CLEAR to confirm.', 'danger')
-            return redirect(url_for('admin_clear_demo_data'))
-
-        try:
-            counts = clear_demo_data()
-            total = sum(counts.values())
-            parts = [f'{v} {k}' for k, v in counts.items() if v > 0]
-            flash(f'Demo data cleared successfully! Removed: {", ".join(parts)} ({total} total records).', 'success')
-            log_audit(session['user_id'], 'clear_demo_data', 'system',
-                      details=f'Deleted: {", ".join(parts)} ({total} total)')
-        except Exception as e:
-            flash(f'Error clearing demo data: {str(e)}', 'danger')
-
-        return redirect(url_for('dashboard'))
-
-    # GET: show confirmation page
-    return render_template('admin_clear_demo.html')
+# ============ DATA PROTECTION ============
+# All data deletion functions have been permanently disabled.
+# Data entered into the system is NEVER deleted to ensure full persistence.
 
 
 # ============ SMS ROUTES ============
@@ -1429,15 +1398,8 @@ def admin_edit_repayment(repayment_id):
 @login_required
 @role_required('admin')
 def admin_delete_repayment(repayment_id):
-    try:
-        success = delete_repayment(repayment_id)
-        if success:
-            log_audit(session['user_id'], 'delete_repayment', 'repayment', repayment_id, 'Deleted repayment')
-            flash('Repayment deleted and loan balance recalculated.', 'success')
-        else:
-            flash('Repayment not found.', 'danger')
-    except Exception as e:
-        flash(f'Error deleting repayment: {e}', 'danger')
+    """Repayment deletion is permanently disabled. Data is never deleted."""
+    flash('Repayment deletion is disabled. All payment records are permanently preserved.', 'warning')
     return redirect(url_for('admin_repayments'))
 
 # ── Accept Payment ──

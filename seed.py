@@ -11,8 +11,24 @@ from app.database import (
 
 
 def seed():
+    """Seed demo data ONLY if database is completely empty.
+    This function will NOT run if any users or loans exist,
+    ensuring user-created data is never overwritten."""
     print("Initializing database...")
     init_db()
+
+    # SAFETY CHECK: Do not seed if database already has data
+    conn = get_db()
+    user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    loan_count = conn.execute('SELECT COUNT(*) FROM loans').fetchone()[0]
+    conn.close()
+
+    if user_count > 0 or loan_count > 0:
+        print(f"⚠️  Database already has data ({user_count} users, {loan_count} loans). Skipping seed.")
+        print("   User-created data is protected and will not be overwritten.")
+        return
+
+    print("Database is empty. Seeding demo data...")
 
     # ============================================================
     # 1. Create admin user

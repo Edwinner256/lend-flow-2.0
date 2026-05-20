@@ -43,19 +43,6 @@ spec.loader.exec_module(mod)
 # Expose the Flask app for Vercel
 app = mod.app
 
-# ── Seed database on cold start (Vercel SQLite / fresh PostgreSQL) ──
-# ONLY seed if the database is truly empty (no users AND no loans)
-# This prevents re-seeding over user-created data
-if IS_VERCEL or HAS_DATABASE_URL:
-    try:
-        from app.database import get_db
-        conn = get_db()
-        user_count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
-        loan_count = conn.execute('SELECT COUNT(*) FROM loans').fetchone()[0]
-        conn.close()
-        # Only seed if BOTH users and loans are empty (fresh database)
-        if user_count == 0 and loan_count == 0:
-            import seed
-            seed.seed()
-    except Exception:
-        pass  # Silently skip if seeding fails
+# ── NO AUTO-SEEDING ──
+# Demo data seeding is permanently disabled.
+# The system starts with a clean database. Admin must create users manually.

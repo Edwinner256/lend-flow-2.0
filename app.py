@@ -780,6 +780,10 @@ def new_loan():
         purpose = request.form.get('purpose')
         guarantor_name = request.form.get('guarantor_name')
         guarantor_phone = request.form.get('guarantor_phone')
+        
+        # Capture loan date and time from form (auto-filled from device)
+        loan_date = request.form.get('loan_date') or datetime.now().strftime('%Y-%m-%d')
+        loan_time = request.form.get('loan_time') or datetime.now().strftime('%H:%M:%S')
 
         # Handle collateral photo upload
         collateral_photo = None
@@ -795,7 +799,8 @@ def new_loan():
 
         loan_id, loan_number = create_loan(client_id, principal, interest_rate, interest_type,
                             payment_schedule, duration_months, purpose, loan_officer_id,
-                            guarantor_name, guarantor_phone, processing_fee, collateral_photo)
+                            guarantor_name, guarantor_phone, processing_fee, collateral_photo,
+                            loan_date=loan_date, loan_time=loan_time)
 
         # Auto-approve loans below UGX 3,000,000
         if principal < 3000000:

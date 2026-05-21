@@ -26,6 +26,20 @@
                     <input type="hidden" name="client_id" value="{{ session.user_id }}">
                     {% endif %}
 
+                    <!-- Loan Date & Time (Auto-filled from device) -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label"><i class="bi bi-calendar-event me-1"></i>Loan Date</label>
+                            <input type="date" name="loan_date" id="loan_date" class="form-control form-control-lg" required>
+                            <div class="form-text">Auto-filled from your device</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label"><i class="bi bi-clock me-1"></i>Loan Time</label>
+                            <input type="time" name="loan_time" id="loan_time" class="form-control form-control-lg" step="1" required>
+                            <div class="form-text">Auto-filled from your device</div>
+                        </div>
+                    </div>
+
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <label class="form-label">Principal Amount</label>
@@ -238,6 +252,38 @@
 </style>
 
 <script>
+// ── Auto-fill Loan Date & Time from device ──
+(function() {
+    const now = new Date();
+    
+    // Format date as YYYY-MM-DD for input[type=date]
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
+    // Format time as HH:MM:SS for input[type=time]
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timeStr = `${hours}:${minutes}:${seconds}`;
+    
+    // Set values
+    const dateInput = document.getElementById('loan_date');
+    const timeInput = document.getElementById('loan_time');
+    if (dateInput) dateInput.value = dateStr;
+    if (timeInput) timeInput.value = timeStr;
+    
+    // Update time every second while form is open
+    setInterval(() => {
+        const n = new Date();
+        const h = String(n.getHours()).padStart(2, '0');
+        const m = String(n.getMinutes()).padStart(2, '0');
+        const s = String(n.getSeconds()).padStart(2, '0');
+        if (timeInput) timeInput.value = `${h}:${m}:${s}`;
+    }, 1000);
+})();
+
 // Collateral photo upload
 const uploadZone = document.getElementById('upload-zone');
 const fileInput = document.getElementById('collateral_photo');

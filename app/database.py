@@ -104,6 +104,8 @@ def init_db():
             guarantor_name TEXT,
             guarantor_phone TEXT,
             start_date DATE,
+            loan_date DATE,
+            loan_time TIME,
             due_date DATE,
             next_payment_date DATE,
             approved_by INTEGER,
@@ -127,6 +129,9 @@ def init_db():
         ('next_payment_date', 'DATE', 'NULL'),
         ('processing_fee', 'REAL', '0'),
         ('collateral_photo', 'TEXT', 'NULL'),
+        ('duration_months', 'INTEGER', '1'),
+        ('loan_date', 'DATE', "date('now')"),
+        ('loan_time', 'TEXT', "time('now')"),
     ]:
         try:
             cursor.execute(f'ALTER TABLE loans ADD COLUMN {col} {col_type} DEFAULT {default}')
@@ -394,7 +399,7 @@ def update_client_profile(user_id, **kwargs):
     conn.commit()
     conn.close()
 
-def create_loan(client_id, principal, interest_rate, interest_type, payment_schedule, duration_months, purpose, loan_officer_id=None, guarantor_name=None, guarantor_phone=None, processing_fee=0, collateral_photo=None):
+def create_loan(client_id, principal, interest_rate, interest_type, payment_schedule, duration_months, purpose, loan_officer_id=None, guarantor_name=None, guarantor_phone=None, processing_fee=0, collateral_photo=None, loan_date=None, loan_time=None):
     """Create a new loan with auto-generated loan number"""
     loan_number = generate_loan_number()
 
@@ -406,7 +411,16 @@ def create_loan(client_id, principal, interest_rate, interest_type, payment_sche
 
     total_amount = principal + total_interest
     balance = total_amount
-    start_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Use provided date/time or default to now
+    if loan_date:
+        start_date = loan_date
+    else:
+        start_date = datetime.now().strftime('%Y-%m-%d')
+    
+    if not loan_time:
+        loan_time = datetime.now().strftime('%H:%M:%S')
+    
     due_date = (datetime.now() + timedelta(days=30 * duration_months)).strftime('%Y-%m-%d')
 
     # Calculate next payment date based on schedule
@@ -421,11 +435,11 @@ def create_loan(client_id, principal, interest_rate, interest_type, payment_sche
     cursor = conn.execute(
         '''INSERT INTO loans (loan_number, client_id, loan_officer_id, principal, interest_rate, interest_type,
            payment_schedule, total_amount, balance, fine_amount, fine_active, default_count,
-           purpose, guarantor_name, guarantor_phone, start_date, due_date, next_payment_date, processing_fee, collateral_photo)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id''',
+           purpose, guarantor_name, guarantor_phone, start_date, loan_date, loan_time, due_date, next_payment_date, processing_fee, collateral_photo)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id''',
         (loan_number, client_id, loan_officer_id, principal, interest_rate, interest_type,
          payment_schedule, total_amount, balance, purpose, guarantor_name, guarantor_phone,
-         start_date, due_date, next_payment, processing_fee, collateral_photo)
+         start_date, loan_date or start_date, loan_time, due_date, next_payment, processing_fee, collateral_photo)
     )
     loan_id = cursor.fetchone()[0]
     conn.commit()

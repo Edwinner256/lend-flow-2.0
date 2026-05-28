@@ -594,7 +594,7 @@ def get_faq_response(question, loan_data=None):
             if fine > 0:
                 return (
                     f"You currently have a fine of **UGX {fine:,.0f}**. "
-                    f"Fines accrue at 0.07% per day on overdue amounts. "
+                    f"Fines are charged at 2% of the total loan amount when payment is overdue by 1+ day. "
                     f"Clear your overdue payment to stop further fines."
                 )
             return "You have no active fines. Continue making timely payments to avoid penalties."

@@ -499,6 +499,12 @@
                     <span class="label">Next Payment Due</span>
                     <span class="value">{{ loan.next_payment_date or 'N/A' }}</span>
                 </div>
+                {% if loan.fine_date %}
+                <div class="info-row">
+                    <span class="label">Fine Applied On</span>
+                    <span class="value" style="color:#dc2626;">{{ loan.fine_date }}</span>
+                </div>
+                {% endif %}
                 <div class="info-row">
                     <span class="label">Guarantor</span>
                     <span class="value">{{ loan.guarantor_name or 'N/A' }}{% if loan.guarantor_phone %} <span class="text-muted fw-normal">({{ loan.guarantor_phone }})</span>{% endif %}</span>
@@ -538,7 +544,11 @@
                 </div>
                 <div class="fine-banner-text">
                     <h6>{% if loan.fine_active %}Fine Active{% else %}Fine Paused{% endif %}</h6>
-                    <small>Default count: {{ loan.default_count }} &middot; Rate: 0.07%/day of total loan</small>
+                    <small>
+                        Default count: {{ loan.default_count }} &middot;
+                        Rate: <strong>2% of total loan</strong>
+                        {% if loan.fine_date %} &middot; Applied: {{ loan.fine_date }}{% endif %}
+                    </small>
                 </div>
             </div>
             <div class="fine-banner-amount">
@@ -662,8 +672,11 @@
     {% endif %}
     {% if session.user_role in ('admin', 'loan_officer') %}
     <a href="{{ url_for('edit_loan', loan_id=loan.id) }}" class="btn btn-outline-warning"><i class="bi bi-pencil"></i> Edit</a>
+    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#applyManualFineModal">
+        <i class="bi bi-hand-index"></i> Apply Fine
+    </button>
     <form action="{{ url_for('check_fine_route', loan_id=loan.id) }}" method="POST" class="d-inline">
-        <button class="btn btn-outline-danger"><i class="bi bi-exclamation-triangle"></i> Check Fine</button>
+        <button class="btn btn-outline-danger"><i class="bi bi-exclamation-triangle"></i> Auto Fine</button>
     </form>
     {% if loan.fine_active %}
     <form action="{{ url_for('toggle_fine_route', loan_id=loan.id) }}" method="POST" class="d-inline">
@@ -889,6 +902,64 @@ function toggleAiRisk(header) {
         </div>
     </div>
 </div>
+
+<!-- ═══════════════ MANUAL FINE MODAL ═══════════════ -->
+{% if session.user_role in ('admin', 'loan_officer') %}
+<div class="modal fade" id="applyManualFineModal" tabindex="-1" aria-labelledby="applyManualFineModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:12px;border:none;box-shadow:0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background:#dc2626;color:#fff;border-radius:12px 12px 0 0;padding:16px 20px;">
+                <h5 class="modal-title" id="applyManualFineModalLabel" style="font-size:15px;font-weight:600;">
+                    <i class="bi bi-hand-index me-2"></i>Apply Manual Fine
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('apply_manual_fine_route', loan_id=loan.id) }}" method="POST">
+                <div class="modal-body" style="padding:24px;">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold"><i class="bi bi-calculator me-1"></i>Fine Amount (UGX)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">UGX</span>
+                            <input type="number" name="fine_amount" class="form-control form-control-lg" step="0.01"
+                                   min="1" placeholder="e.g. {{ (loan.total_amount * 0.02)|round|int }}" required>
+                        </div>
+                        <div class="form-text">
+                            Suggested: <strong>UGX {{ (loan.total_amount * 0.02)|round|int }}</strong> (2% of total loan UGX {{ "{:,.0f}".format(loan.total_amount) }})
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold"><i class="bi bi-calendar-event me-1"></i>Fine Date</label>
+                        <input type="date" name="fine_date" class="form-control form-control-lg"
+                               value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                        <div class="form-text">Select the date this fine applies from</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2 p-3 rounded" style="background:#fef2f2;border:1px solid #fecaca;font-size:13px;">
+                        <i class="bi bi-info-circle" style="color:#dc2626;margin-top:2px;"></i>
+                        <div>
+                            <strong style="color:#991b1b;">Note:</strong>
+                            <span style="color:#7f1d1d;">
+                                This will add the fine amount to the existing balance. The client will be notified in-app.
+                                Current fine: UGX {{ "{:,.0f}".format(loan.fine_amount) }}
+                                {% if loan.fine_active %}
+                                (Active)
+                                {% else %}
+                                (Inactive)
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top:1px solid #eef2f0;padding:16px 20px;">
+                    <button type="button" class="btn btn-secondary" style="border-radius:6px;" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" style="background:#dc2626;color:#fff;border-radius:6px;">
+                        <i class="bi bi-check-lg me-1"></i> Apply Fine
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- ═══════════════ DELETE MODAL ═══════════════ -->
 {% if session.user_role != 'loan_viewer' %}

@@ -16,7 +16,7 @@ from app.database import (
     reject_loan, add_repayment, get_loans, get_loan, get_loan_by_number, get_repayments,
     get_notifications, mark_notification_read, mark_all_notifications_read,
     get_dashboard_stats, get_all_users, log_audit, send_notification,
-    check_and_apply_fine, toggle_fine, run_daily_checks, UPLOAD_FOLDER,
+    check_and_apply_fine, toggle_fine, apply_manual_fine, run_daily_checks, UPLOAD_FOLDER,
     calculate_payment_schedule, get_monthly_pnl, get_balance_sheet, get_db,
     record_login_attempt, is_account_locked, change_password, get_failed_attempts,
     update_user, delete_user, get_all_repayments, update_repayment,
@@ -37,6 +37,11 @@ app.secret_key = os.environ.get('SECRET_KEY', 'lendflow-secret-key-change-in-pro
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# Make datetime available in all templates
+@app.context_processor
+def inject_datetime():
+    return {'datetime': __import__('datetime')}
 
 # Session security configuration
 app.config['SESSION_COOKIE_HTTPONLY'] = True       # Prevent XSS access to session cookie
@@ -986,7 +991,7 @@ def check_fine_route(loan_id):
     result = check_and_apply_fine(loan_id)
     if result and result['fine_applied']:
         loan = result['loan']
-        flash(f'Fine of UGX {loan["fine_amount"]:,.0f} applied to {loan["loan_number"]} (0.07% of total).', 'warning')
+        flash(f'Fine of UGX {loan["fine_amount"]:,.0f} applied to {loan["loan_number"]} (2% of total loan).', 'warning')
         # Send SMS notification to client
         sms_result = send_fine_applied_sms(loan)
         if sms_result['success']:
@@ -996,6 +1001,51 @@ def check_fine_route(loan_id):
     else:
         flash('No fine applied. Payment is not overdue or fine already active.', 'info')
     return redirect(url_for('loan_detail', loan_id=loan_id))
+
+
+@app.route('/loans/<int:loan_id>/apply-manual-fine', methods=['POST'])
+@login_required
+@role_required('admin', 'loan_officer')
+def apply_manual_fine_route(loan_id):
+    """Admin manually applies a fine with a specific amount and date."""
+    loan = get_loan(loan_id)
+    if not loan:
+        flash('Loan not found.', 'danger')
+        return redirect(url_for('manage_loans'))
+
+    try:
+        fine_amount = float(request.form.get('fine_amount', 0))
+        fine_date = request.form.get('fine_date', '').strip()
+
+        if fine_amount <= 0:
+            flash('Fine amount must be greater than zero.', 'danger')
+            return redirect(url_for('loan_detail', loan_id=loan_id))
+
+        if not fine_date:
+            fine_date = datetime.now().strftime('%Y-%m-%d')
+
+        result = apply_manual_fine(loan_id, fine_amount, fine_date, session['user_id'])
+        if result:
+            from app.sms_service import send_fine_applied_sms
+            flash(f'Manual fine of UGX {fine_amount:,.0f} applied to {loan["loan_number"]}.', 'success')
+            log_audit(session['user_id'], 'manual_fine', 'loan', loan_id,
+                     f'Applied fine UGX {fine_amount:,.0f} on {fine_date}')
+            # Send SMS
+            try:
+                sms_result = send_fine_applied_sms(result)
+                if sms_result['success']:
+                    flash(f'SMS fine notification sent to {result["client_name"]}.', 'info')
+                else:
+                    flash(f'SMS notification failed: {sms_result["error"]}', 'warning')
+            except Exception:
+                pass
+        else:
+            flash('Could not apply fine. Loan not found.', 'danger')
+    except Exception as e:
+        flash(f'Error applying fine: {str(e)}', 'danger')
+
+    return redirect(url_for('loan_detail', loan_id=loan_id))
+
 
 @app.route('/loans/<int:loan_id>/edit', methods=['GET', 'POST'])
 @login_required

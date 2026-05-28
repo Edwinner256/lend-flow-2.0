@@ -126,6 +126,7 @@ def init_db():
         ('fine_amount', 'REAL', '0'),
         ('fine_active', 'INTEGER', '0'),
         ('default_count', 'INTEGER', '0'),
+        ('fine_date', 'DATE', 'NULL'),
         ('next_payment_date', 'DATE', 'NULL'),
         ('processing_fee', 'REAL', '0'),
         ('collateral_photo', 'TEXT', 'NULL'),
@@ -555,6 +556,7 @@ def reject_loan(loan_id, approved_by):
 def check_and_apply_fine(loan_id):
     """Check if fine should be applied and apply it automatically.
     Fines applied when payment is 1+ day past due_date or next_payment_date.
+    Fine is **2% of the total loan amount** (one-time fine per overdue event).
 
     Returns:
         dict with 'fine_applied' (bool), 'loan_id' (int), 'loan' (dict or None)
@@ -580,15 +582,18 @@ def check_and_apply_fine(loan_id):
         conn.close()
         return None
 
-    # Loan is overdue — apply/update fine
+    # Loan is overdue — apply fine (only once, if not already applied)
     new_default_count = loan['default_count'] + 1
     fine_applied = False
 
     if not loan['fine_active']:
-        fine_amount = loan['total_amount'] * 0.0007  # 0.07% of total loan
+        # 2% of total loan amount — a one-time fine, not cumulative
+        fine_amount = loan['total_amount'] * 0.02  # 2% of total loan
+        fine_date = today
         conn.execute(
-            'UPDATE loans SET default_count = ?, fine_amount = fine_amount + ?, fine_active = 1, balance = balance + ?, status = "defaulted", updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (new_default_count, fine_amount, fine_amount, loan_id)
+            'UPDATE loans SET default_count = ?, fine_amount = fine_amount + ?, fine_active = 1, '
+            'fine_date = ?, balance = balance + ?, status = "defaulted", updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (new_default_count, fine_amount, fine_date, fine_amount, loan_id)
         )
         fine_applied = True
 
@@ -596,7 +601,7 @@ def check_and_apply_fine(loan_id):
         conn.execute(
             'INSERT INTO notifications (user_id, type, title, message, channel) VALUES (?, ?, ?, ?, ?)',
             (loan['client_id'], 'warning', 'Fine Applied!',
-             f'A fine of UGX {fine_amount:,.0f} (0.07% of total loan) has been applied to your loan {loan["loan_number"]} due to missed payment.', 'in_app')
+             f'A fine of UGX {fine_amount:,.0f} (2% of total loan) has been applied to your loan {loan["loan_number"]} due to missed payment.', 'in_app')
         )
     else:
         conn.execute(
@@ -616,6 +621,57 @@ def check_and_apply_fine(loan_id):
         'loan': fresh_loan
     }
 
+
+def apply_manual_fine(loan_id, fine_amount, fine_date, applied_by):
+    """Admin manually applies a fine to a loan with a specific amount and date.
+
+    This adds the fine to the existing fine_amount, marks fine as active,
+    updates the balance, and logs the action.
+
+    Args:
+        loan_id: The loan ID
+        fine_amount: The fine amount to apply (will be added to existing)
+        fine_date: The date (YYYY-MM-DD) the fine is applied
+        applied_by: User ID of the admin applying the fine
+
+    Returns:
+        dict with loan info, or None if loan not found
+    """
+    conn = get_db()
+    loan = conn.execute('SELECT * FROM loans WHERE id = ?', (loan_id,)).fetchone()
+    if not loan:
+        conn.close()
+        return None
+
+    new_default_count = loan['default_count'] + 1
+
+    conn.execute(
+        'UPDATE loans SET default_count = ?, fine_amount = fine_amount + ?, fine_active = 1, '
+        'fine_date = ?, balance = balance + ?, status = "defaulted", updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        (new_default_count, fine_amount, fine_date, fine_amount, loan_id)
+    )
+
+    # Log audit entry
+    from app.database import log_audit
+    try:
+        log_audit(applied_by, 'manual_fine', 'loan', loan_id,
+                  f'Manual fine of UGX {fine_amount:,.0f} applied on {fine_date}')
+    except Exception:
+        pass  # non-critical
+
+    # Notify client
+    conn.execute(
+        'INSERT INTO notifications (user_id, type, title, message, channel) VALUES (?, ?, ?, ?, ?)',
+        (loan['client_id'], 'warning', 'Fine Applied (Manual)',
+         f'A manual fine of UGX {fine_amount:,.0f} (2%) has been applied to your loan {loan["loan_number"]}.', 'in_app')
+    )
+
+    conn.commit()
+    conn.close()
+
+    fresh_loan = get_loan(loan_id)
+    return fresh_loan
+
 def toggle_fine(loan_id, action):
     """Pause or activate fine manually"""
     conn = get_db()
@@ -630,7 +686,7 @@ def add_repayment(loan_id, amount, payment_method, reference, received_by, notes
     """Add a repayment (principal or fine)"""
     conn = get_db()
 
-    loan = conn.execute('SELECT balance, total_amount, fine_amount, fine_active FROM loans WHERE id = ?', (loan_id,)).fetchone()
+    loan = conn.execute('SELECT balance, total_amount, fine_amount, fine_active, fine_date FROM loans WHERE id = ?', (loan_id,)).fetchone()
     if not loan:
         conn.close()
         return False
@@ -649,8 +705,8 @@ def add_repayment(loan_id, amount, payment_method, reference, received_by, notes
         )
 
         conn.execute(
-            'UPDATE loans SET fine_amount = ?, fine_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (new_fine, fine_active, loan_id)
+            'UPDATE loans SET fine_amount = ?, fine_active = ?, fine_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (new_fine, fine_active, None if fine_active == 0 else loan.get('fine_date'), loan_id)
         )
     else:
         # Principal payment — only reduce balance

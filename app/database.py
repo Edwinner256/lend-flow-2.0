@@ -132,8 +132,8 @@ def init_db():
         ('processing_fee', 'REAL', '0'),
         ('collateral_photo', 'TEXT', 'NULL'),
         ('duration_months', 'INTEGER', '1'),
-        ('loan_date', 'DATE', "date('now')"),
-        ('loan_time', 'TEXT', "time('now')"),
+        ('loan_date', 'DATE', 'NULL'),
+        ('loan_time', 'TEXT', 'NULL'),
     ]:
         try:
             cursor.execute(f'ALTER TABLE loans ADD COLUMN {col} {col_type} DEFAULT {default}')

@@ -1328,6 +1328,56 @@ def run_daily_checks():
 
     return fined_loans
 
+
+def auto_apply_overdue_fines():
+    """Efficiently find and apply fines for ALL overdue loans in one pass.
+
+    Unlike `run_daily_checks()` which iterates every active loan,
+    this queries ONLY loans that are past their due/next-payment date
+    and have not yet had a fine applied (`fine_active = 0`).
+
+    Returns:
+        int — number of new fines applied
+    """
+    conn = get_db()
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    # Find overdue loans that don't already have an active fine
+    overdue = conn.execute('''
+        SELECT id, client_id, loan_number, total_amount
+        FROM loans
+        WHERE status IN ('active', 'defaulted')
+          AND fine_active = 0
+          AND (next_payment_date < ? OR due_date < ?)
+    ''', (today, today)).fetchall()
+
+    applied = 0
+    for loan in overdue:
+        fine_amount = loan['total_amount'] * 0.02
+        default_count = conn.execute(
+            'SELECT default_count FROM loans WHERE id = ?', (loan['id'],)
+        ).fetchone()['default_count'] + 1
+
+        conn.execute(
+            'UPDATE loans SET default_count = ?, fine_amount = fine_amount + ?, fine_active = 1, '
+            'fine_date = ?, balance = balance + ?, status = "defaulted", '
+            'updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (default_count, fine_amount, today, fine_amount, loan['id'])
+        )
+
+        # In-app notification
+        conn.execute(
+            'INSERT INTO notifications (user_id, type, title, message, channel) VALUES (?, ?, ?, ?, ?)',
+            (loan['client_id'], 'warning', 'Fine Applied!',
+             f'A fine of UGX {fine_amount:,.0f} (2% of total loan) has been applied to your loan {loan["loan_number"]} due to missed payment.', 'in_app')
+        )
+        applied += 1
+
+    if applied:
+        conn.commit()
+    conn.close()
+    return applied
+
 def import_data_file(filepath, ext):
     """Import data from CSV or Excel file. Auto-detects entity type and imports."""
     import csv

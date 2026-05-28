@@ -17,7 +17,8 @@ from app.database import (
     reject_loan, add_repayment, get_loans, get_loan, get_loan_by_number, get_repayments,
     get_notifications, mark_notification_read, mark_all_notifications_read,
     get_dashboard_stats, get_all_users, log_audit, send_notification,
-    check_and_apply_fine, toggle_fine, apply_manual_fine, run_daily_checks, UPLOAD_FOLDER,
+    check_and_apply_fine, toggle_fine, apply_manual_fine, run_daily_checks,
+    auto_apply_overdue_fines, UPLOAD_FOLDER,
     calculate_payment_schedule, get_monthly_pnl, get_balance_sheet, get_db,
     record_login_attempt, is_account_locked, change_password, get_failed_attempts,
     update_user, delete_user, get_all_repayments, update_repayment,
@@ -64,6 +65,35 @@ init_db()
 # Ensure superuser admin account exists
 from app.database import ensure_admin_exists
 ensure_admin_exists(username='admin', password='admin123?Vaulta')
+
+# ── Automatic overdue fine checker ──────────────────────────────
+# Runs auto_apply_overdue_fines() before every request, but
+# throttles to at most once every 30 minutes to avoid overhead.
+_last_fine_check = None  # module-level timestamp
+
+@app.before_request
+def auto_check_overdue_fines():
+    """Before every request, automatically apply fines for overdue loans.
+    
+    Throttled to run at most once every 30 minutes using a module-level
+    timestamp. The database query is efficient — it only hits loans that
+    are past due and have no active fine yet.
+    """
+    global _last_fine_check
+    now = datetime.now()
+    
+    # Throttle: only run if 30+ minutes since last check
+    if _last_fine_check and (now - _last_fine_check).total_seconds() < 1800:
+        return
+    
+    _last_fine_check = now
+    
+    try:
+        count = auto_apply_overdue_fines()
+        if count:
+            print(f"[Auto-Fine] Applied {count} fine(s) for overdue loans.")
+    except Exception as e:
+        print(f"[Auto-Fine] Error: {e}")
 
 # ============ AUTH DECORATORS ============
 
@@ -1058,6 +1088,22 @@ def apply_manual_fine_route(loan_id):
         flash(f'Error applying fine: {str(e)}', 'danger')
 
     return redirect(url_for('loan_detail', loan_id=loan_id))
+
+
+@app.route('/api/run-fine-checks', methods=['POST'])
+@login_required
+@role_required('admin')
+def run_fine_checks_api():
+    """Trigger overdue fine checks for all loans (admin-only).
+
+    Useful for external cron jobs or manual admin triggers.
+    Returns JSON with the number of fines applied.
+    """
+    try:
+        count = auto_apply_overdue_fines()
+        return jsonify({'success': True, 'fines_applied': count})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/loans/<int:loan_id>/edit', methods=['GET', 'POST'])

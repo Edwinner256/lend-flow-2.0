@@ -565,8 +565,12 @@ def reject_loan(loan_id, approved_by):
 
 def check_and_apply_fine(loan_id):
     """Check if fine should be applied and apply it automatically.
-    Fines applied when payment is 1+ day past due_date or next_payment_date.
-    Fine is **2% of the total loan amount** (one-time fine per overdue event).
+    Fines are calculated from the loan's **disbursement date** — that's when
+    the loan starts accruing interest. `due_date` and `next_payment_date`
+    are both derived from `disbursement_date` at loan creation.
+
+    When a payment is 1+ day past the due date or next installment date,
+    a fine of **2% of total loan amount** is applied (one-time per overdue event).
 
     Returns:
         dict with 'fine_applied' (bool), 'loan_id' (int), 'loan' (dict or None)
@@ -581,12 +585,21 @@ def check_and_apply_fine(loan_id):
 
     today = datetime.now().strftime('%Y-%m-%d')
 
-    # Determine if loan is overdue — check due_date or next_payment_date
+    # Determine if loan is overdue — check due_date or next_payment_date.
+    # Both dates are already anchored to disbursement_date at loan creation:
+    #   due_date = disbursement_date + 30 * duration_months
+    #   next_payment_date = disbursement_date + interval (daily/weekly/monthly)
     overdue = False
     if loan['due_date'] and loan['due_date'] < today:
         overdue = True
     elif loan['next_payment_date'] and loan['next_payment_date'] < today:
         overdue = True
+    # Fallback: if neither date is set, check disbursement_date directly
+    elif loan['disbursement_date'] and loan['start_date']:
+        # For safety: if 31+ days past disbursement with no dates set
+        ref_date = loan['disbursement_date'] or loan['start_date']
+        if ref_date and ref_date < (datetime.now() - timedelta(days=31)).strftime('%Y-%m-%d'):
+            overdue = True
 
     if not overdue:
         conn.close()

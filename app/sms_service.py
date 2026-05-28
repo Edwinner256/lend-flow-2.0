@@ -16,7 +16,7 @@ SMS_SENDER = "Vaulta Cash"
 
 # Mock mode: when True, simulates successful SMS sends without hitting the real API.
 # Set to False for production use with valid egoSMS credentials.
-SMS_MOCK_MODE = True
+SMS_MOCK_MODE = False
 
 # ── SMS Response codes ──
 # egoSMS plain endpoint returns plain text. Common success indicators:

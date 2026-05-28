@@ -5,7 +5,7 @@ Main Application - Enhanced with profile pictures, loan IDs, fines
 
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from werkzeug.security import check_password_hash
@@ -41,7 +41,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 # Make datetime available in all templates
 @app.context_processor
 def inject_datetime():
-    return {'datetime': __import__('datetime')}
+    return {'datetime': datetime, 'date': date}
 
 # Session security configuration
 app.config['SESSION_COOKIE_HTTPONLY'] = True       # Prevent XSS access to session cookie

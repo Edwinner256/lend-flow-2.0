@@ -775,61 +775,70 @@ def manage_loans():
 @login_required
 def new_loan():
     if request.method == 'POST':
-        client_id = int(request.form.get('client_id', session['user_id']))
-        principal = float(request.form.get('principal'))
-        interest_rate = float(request.form.get('interest_rate'))
-        interest_type = request.form.get('interest_type', 'reducing')
-        payment_schedule = request.form.get('payment_schedule', 'monthly')
-        duration_months = int(request.form.get('duration_months'))
-        processing_fee = float(request.form.get('processing_fee', 0) or 0)
-        purpose = request.form.get('purpose')
-        guarantor_name = request.form.get('guarantor_name')
-        guarantor_phone = request.form.get('guarantor_phone')
-        
-        # Capture loan date and time from form (auto-filled from device — read-only)
-        loan_date = request.form.get('loan_date') or datetime.now().strftime('%Y-%m-%d')
-        loan_time = request.form.get('loan_time') or datetime.now().strftime('%H:%M:%S')
-        
-        # Disbursement date — manually selected from calendar (defaults to loan_date)
-        disbursement_date = request.form.get('disbursement_date') or loan_date
+        try:
+            client_id = int(request.form.get('client_id', session['user_id']))
+            principal = float(request.form.get('principal'))
+            interest_rate = float(request.form.get('interest_rate'))
+            interest_type = request.form.get('interest_type', 'reducing')
+            payment_schedule = request.form.get('payment_schedule', 'monthly')
+            duration_months = int(request.form.get('duration_months'))
+            processing_fee = float(request.form.get('processing_fee', 0) or 0)
+            purpose = request.form.get('purpose')
+            guarantor_name = request.form.get('guarantor_name')
+            guarantor_phone = request.form.get('guarantor_phone')
 
-        # Handle collateral photo upload
-        collateral_photo = None
-        if 'collateral_photo' in request.files:
-            file = request.files['collateral_photo']
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"collateral_{uuid.uuid4().hex[:8]}.{ext}"
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                collateral_photo = filename
+            # Capture loan date and time from form (auto-filled from device — read-only)
+            loan_date = request.form.get('loan_date') or datetime.now().strftime('%Y-%m-%d')
+            loan_time = request.form.get('loan_time') or datetime.now().strftime('%H:%M:%S')
 
-        loan_officer_id = session['user_id'] if session['user_role'] == 'loan_officer' else None
+            # Disbursement date — manually selected from calendar (defaults to loan_date)
+            disbursement_date = request.form.get('disbursement_date') or loan_date
 
-        loan_id, loan_number = create_loan(client_id, principal, interest_rate, interest_type,
-                            payment_schedule, duration_months, purpose, loan_officer_id,
-                            guarantor_name, guarantor_phone, processing_fee, collateral_photo,
-                            loan_date=loan_date, loan_time=loan_time,
-                            disbursement_date=disbursement_date)
+            # Handle collateral photo upload
+            collateral_photo = None
+            if 'collateral_photo' in request.files:
+                file = request.files['collateral_photo']
+                if file and file.filename and allowed_file(file.filename):
+                    ext = file.filename.rsplit('.', 1)[1].lower()
+                    filename = f"collateral_{uuid.uuid4().hex[:8]}.{ext}"
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    collateral_photo = filename
 
-        # Auto-approve loans below UGX 3,000,000
-        if principal < 3000000:
-            approve_loan(loan_id, session['user_id'])
-            loan = get_loan(loan_id)
-            send_loan_approved_notification(loan_id, loan['client_id'])
-            log_audit(session['user_id'], 'approve_loan', 'loan', loan_id)
-            flash(f'Loan {loan_number} approved automatically (under UGX 3,000,000)!', 'success')
-        else:
-            log_audit(session['user_id'], 'create_loan', 'loan', loan_id, f'{loan_number}: Principal {principal}, Fee {processing_fee}')
-            # Notify all admins about pending large loan
-            created_by = session.get('full_name', 'A user')
-            admins = get_all_users('admin')
-            for admin in admins:
-                send_notification(admin['id'], 'warning', 'Loan Needs Approval',
-                    f'Loan {loan_number} of UGX {principal:,.0f} from {created_by} needs your approval.',
-                    'in_app', entity_type='loan', entity_id=loan_id)
-            flash(f'Loan application {loan_number} submitted! Awaiting admin approval (UGX 3,000,000+).', 'success')
+            loan_officer_id = session['user_id'] if session['user_role'] == 'loan_officer' else None
 
-        return redirect(url_for('manage_loans'))
+            loan_id, loan_number = create_loan(client_id, principal, interest_rate, interest_type,
+                                payment_schedule, duration_months, purpose, loan_officer_id,
+                                guarantor_name, guarantor_phone, processing_fee, collateral_photo,
+                                loan_date=loan_date, loan_time=loan_time,
+                                disbursement_date=disbursement_date)
+
+            # Auto-approve loans below UGX 3,000,000
+            if principal < 3000000:
+                approve_loan(loan_id, session['user_id'])
+                loan = get_loan(loan_id)
+                send_loan_approved_notification(loan_id, loan['client_id'])
+                log_audit(session['user_id'], 'approve_loan', 'loan', loan_id)
+                flash(f'Loan {loan_number} approved automatically (under UGX 3,000,000)!', 'success')
+            else:
+                log_audit(session['user_id'], 'create_loan', 'loan', loan_id, f'{loan_number}: Principal {principal}, Fee {processing_fee}')
+                # Notify all admins about pending large loan
+                created_by = session.get('full_name', 'A user')
+                admins = get_all_users('admin')
+                for admin in admins:
+                    send_notification(admin['id'], 'warning', 'Loan Needs Approval',
+                        f'Loan {loan_number} of UGX {principal:,.0f} from {created_by} needs your approval.',
+                        'in_app', entity_type='loan', entity_id=loan_id)
+                flash(f'Loan application {loan_number} submitted! Awaiting admin approval (UGX 3,000,000+).', 'success')
+
+            return redirect(url_for('manage_loans'))
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            flash(f'Error creating loan: {type(e).__name__}: {e}', 'danger')
+            # Re-render the form so the user sees the error
+            clients = get_all_users('client') if session['user_role'] in ('admin', 'loan_officer') else None
+            return render_template('new_loan.html', clients=clients)
 
     clients = get_all_users('client') if session['user_role'] in ('admin', 'loan_officer') else None
     return render_template('new_loan.html', clients=clients)

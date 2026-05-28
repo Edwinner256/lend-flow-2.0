@@ -488,8 +488,17 @@
                     <span class="value"><span class="badge" style="background:var(--dark-green-bg);color:var(--dark-green);font-weight:500;">{{ loan.payment_schedule.title() }}</span></span>
                 </div>
                 <div class="info-row">
-                    <span class="label">Start Date</span>
-                    <span class="value">{{ loan.start_date }}</span>
+                    <span class="label"><i class="bi bi-pencil-square text-muted me-1" style="font-size:11px"></i>Application Date</span>
+                    <span class="value">{{ loan.loan_date }} {{ loan.loan_time or '' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label"><i class="bi bi-cash-stack text-muted me-1" style="font-size:11px"></i>Disbursement Date</span>
+                    <span class="value" style="color:var(--dark-green);font-weight:700;">
+                        {{ loan.disbursement_date or loan.start_date }}
+                        {% if loan.disbursement_date and loan.disbursement_date != loan.loan_date %}
+                        <span class="badge ms-1" style="background:#dcfce7;color:#166534;font-size:9px;font-weight:500;">Funded</span>
+                        {% endif %}
+                    </span>
                 </div>
                 <div class="info-row">
                     <span class="label">Due Date</span>

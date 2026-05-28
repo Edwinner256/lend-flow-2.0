@@ -786,9 +786,12 @@ def new_loan():
         guarantor_name = request.form.get('guarantor_name')
         guarantor_phone = request.form.get('guarantor_phone')
         
-        # Capture loan date and time from form (auto-filled from device)
+        # Capture loan date and time from form (auto-filled from device — read-only)
         loan_date = request.form.get('loan_date') or datetime.now().strftime('%Y-%m-%d')
         loan_time = request.form.get('loan_time') or datetime.now().strftime('%H:%M:%S')
+        
+        # Disbursement date — manually selected from calendar (defaults to loan_date)
+        disbursement_date = request.form.get('disbursement_date') or loan_date
 
         # Handle collateral photo upload
         collateral_photo = None
@@ -805,7 +808,8 @@ def new_loan():
         loan_id, loan_number = create_loan(client_id, principal, interest_rate, interest_type,
                             payment_schedule, duration_months, purpose, loan_officer_id,
                             guarantor_name, guarantor_phone, processing_fee, collateral_photo,
-                            loan_date=loan_date, loan_time=loan_time)
+                            loan_date=loan_date, loan_time=loan_time,
+                            disbursement_date=disbursement_date)
 
         # Auto-approve loans below UGX 3,000,000
         if principal < 3000000:
@@ -1066,6 +1070,7 @@ def edit_loan(loan_id):
         guarantor_name = request.form.get('guarantor_name', loan['guarantor_name'] or '')
         guarantor_phone = request.form.get('guarantor_phone', loan['guarantor_phone'] or '')
         processing_fee = float(request.form.get('processing_fee', loan.get('processing_fee', 0) or 0))
+        disbursement_date = request.form.get('disbursement_date', loan.get('disbursement_date') or loan.get('start_date') or '').strip()
         status = request.form.get('status', loan['status'])
 
         # Recalculate total amount
@@ -1075,8 +1080,8 @@ def edit_loan(loan_id):
             total_interest = principal * (interest_rate / 100) * duration_months / 2
         total_amount = principal + total_interest
 
-        # Calculate due date
-        start_date = loan['start_date'] or datetime.now().strftime('%Y-%m-%d')
+        # Calculate due date from disbursement date
+        start_date = disbursement_date or loan['start_date'] or datetime.now().strftime('%Y-%m-%d')
         due_date = (datetime.strptime(start_date, '%Y-%m-%d') + timedelta(days=30 * duration_months)).strftime('%Y-%m-%d')
 
         # Calculate next payment date
@@ -1092,10 +1097,10 @@ def edit_loan(loan_id):
             '''UPDATE loans SET principal=?, interest_rate=?, interest_type=?, payment_schedule=?,
                total_amount=?, balance=?, purpose=?, guarantor_name=?, guarantor_phone=?,
                start_date=?, due_date=?, next_payment_date=?, processing_fee=?, status=?,
-               updated_at=CURRENT_TIMESTAMP WHERE id=?''',
+               disbursement_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=?''',
             (principal, interest_rate, interest_type, payment_schedule,
              total_amount, total_amount - loan['amount_paid'], purpose, guarantor_name, guarantor_phone,
-             start_date, due_date, next_payment, processing_fee, status, loan_id)
+             start_date, due_date, next_payment, processing_fee, status, disbursement_date or start_date, loan_id)
         )
         conn.commit()
         conn.close()

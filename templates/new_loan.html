@@ -26,17 +26,41 @@
                     <input type="hidden" name="client_id" value="{{ session.user_id }}">
                     {% endif %}
 
-                    <!-- Loan Date & Time (Auto-filled from device) -->
+                    <!-- Application Date & Time (Auto-filled from device — read-only) -->
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label"><i class="bi bi-calendar-event me-1"></i>Loan Date</label>
-                            <input type="date" name="loan_date" id="loan_date" class="form-control form-control-lg" required>
-                            <div class="form-text">Auto-filled from your device</div>
+                            <label class="form-label"><i class="bi bi-calendar-event me-1"></i>Application Date</label>
+                            <input type="date" name="loan_date" id="loan_date" class="form-control form-control-lg" readonly
+                                   style="background:#f1f5f9;cursor:not-allowed;">
+                            <div class="form-text"><i class="bi bi-info-circle me-1"></i>Auto-filled from your device (read-only)</div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label"><i class="bi bi-clock me-1"></i>Loan Time</label>
-                            <input type="time" name="loan_time" id="loan_time" class="form-control form-control-lg" step="1" required>
-                            <div class="form-text">Auto-filled from your device</div>
+                            <label class="form-label"><i class="bi bi-clock me-1"></i>Application Time</label>
+                            <input type="time" name="loan_time" id="loan_time" class="form-control form-control-lg" step="1" readonly
+                                   style="background:#f1f5f9;cursor:not-allowed;">
+                            <div class="form-text"><i class="bi bi-info-circle me-1"></i>Auto-filled from your device (read-only)</div>
+                        </div>
+                    </div>
+
+                    <!-- Disbursement Date (Manually selectable) -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label"><i class="bi bi-cash-stack me-1"></i>Disbursement Date</label>
+                            <input type="date" name="disbursement_date" id="disbursement_date" class="form-control form-control-lg">
+                            <div class="form-text">Date the loan money is handed to the client — defaults to today</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 rounded" style="background:var(--dark-green-bg);border:1px solid rgba(26,60,42,0.1);min-height:80px;display:flex;align-items:center;">
+                                <div>
+                                    <small class="text-muted d-block" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">
+                                        <i class="bi bi-info-circle me-1"></i>Why separate dates?
+                                    </small>
+                                    <small class="text-muted" style="font-size:12px;">
+                                        The <strong>Application Date</strong> is when the record is created (auto).
+                                        The <strong>Disbursement Date</strong> is when the client receives the money — repayment schedules start from this date.
+                                    </small>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -271,8 +295,10 @@
     // Set values
     const dateInput = document.getElementById('loan_date');
     const timeInput = document.getElementById('loan_time');
+    const disbursementInput = document.getElementById('disbursement_date');
     if (dateInput) dateInput.value = dateStr;
     if (timeInput) timeInput.value = timeStr;
+    if (disbursementInput && !disbursementInput.value) disbursementInput.value = dateStr;
     
     // Update time every second while form is open
     setInterval(() => {

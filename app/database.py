@@ -127,6 +127,7 @@ def init_db():
         ('fine_active', 'INTEGER', '0'),
         ('default_count', 'INTEGER', '0'),
         ('fine_date', 'DATE', 'NULL'),
+        ('disbursement_date', 'DATE', 'NULL'),
         ('next_payment_date', 'DATE', 'NULL'),
         ('processing_fee', 'REAL', '0'),
         ('collateral_photo', 'TEXT', 'NULL'),
@@ -400,7 +401,7 @@ def update_client_profile(user_id, **kwargs):
     conn.commit()
     conn.close()
 
-def create_loan(client_id, principal, interest_rate, interest_type, payment_schedule, duration_months, purpose, loan_officer_id=None, guarantor_name=None, guarantor_phone=None, processing_fee=0, collateral_photo=None, loan_date=None, loan_time=None):
+def create_loan(client_id, principal, interest_rate, interest_type, payment_schedule, duration_months, purpose, loan_officer_id=None, guarantor_name=None, guarantor_phone=None, processing_fee=0, collateral_photo=None, loan_date=None, loan_time=None, disbursement_date=None):
     """Create a new loan with auto-generated loan number"""
     loan_number = generate_loan_number()
 
@@ -413,34 +414,43 @@ def create_loan(client_id, principal, interest_rate, interest_type, payment_sche
     total_amount = principal + total_interest
     balance = total_amount
     
-    # Use provided date/time or default to now
-    if loan_date:
-        start_date = loan_date
-    else:
-        start_date = datetime.now().strftime('%Y-%m-%d')
-    
+    # Loan creation date/time — auto-filled from device
+    if not loan_date:
+        loan_date = datetime.now().strftime('%Y-%m-%d')
     if not loan_time:
         loan_time = datetime.now().strftime('%H:%M:%S')
     
-    due_date = (datetime.now() + timedelta(days=30 * duration_months)).strftime('%Y-%m-%d')
+    # Disbursement date — when money is actually handed over.
+    # If not provided, defaults to loan creation date.
+    if not disbursement_date:
+        disbursement_date = loan_date
+    
+    # start_date is the DISBURSEMENT date (repayment schedule starts from disbursement)
+    start_date = disbursement_date
+    
+    # Parse disbursement date for due date calculation
+    disp_date = datetime.strptime(start_date, '%Y-%m-%d')
+    
+    due_date = (disp_date + timedelta(days=30 * duration_months)).strftime('%Y-%m-%d')
 
     # Calculate next payment date based on schedule
     if payment_schedule == 'daily':
-        next_payment = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        next_payment = (disp_date + timedelta(days=1)).strftime('%Y-%m-%d')
     elif payment_schedule == 'weekly':
-        next_payment = (datetime.now() + timedelta(weeks=1)).strftime('%Y-%m-%d')
+        next_payment = (disp_date + timedelta(weeks=1)).strftime('%Y-%m-%d')
     else:  # monthly
-        next_payment = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+        next_payment = (disp_date + timedelta(days=30)).strftime('%Y-%m-%d')
 
     conn = get_db()
     cursor = conn.execute(
         '''INSERT INTO loans (loan_number, client_id, loan_officer_id, principal, interest_rate, interest_type,
            payment_schedule, total_amount, balance, fine_amount, fine_active, default_count,
-           purpose, guarantor_name, guarantor_phone, start_date, loan_date, loan_time, due_date, next_payment_date, processing_fee, collateral_photo)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id''',
+           purpose, guarantor_name, guarantor_phone, start_date, loan_date, loan_time, disbursement_date,
+           due_date, next_payment_date, processing_fee, collateral_photo)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id''',
         (loan_number, client_id, loan_officer_id, principal, interest_rate, interest_type,
          payment_schedule, total_amount, balance, purpose, guarantor_name, guarantor_phone,
-         start_date, loan_date or start_date, loan_time, due_date, next_payment, processing_fee, collateral_photo)
+         start_date, loan_date, loan_time, disbursement_date, due_date, next_payment, processing_fee, collateral_photo)
     )
     loan_id = cursor.fetchone()[0]
     conn.commit()

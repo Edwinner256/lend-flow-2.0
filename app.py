@@ -1609,17 +1609,9 @@ def accept_payment():
         flash(f'{pay_label.title()} of UGX {amount:,.0f} recorded for {loan["loan_number"]}!', 'success')
         return redirect(url_for('accept_payment'))
 
-    # Build filters: support search query param
-    filters = {}
-    search = request.args.get('search', '').strip()
-    if search:
-        filters['search'] = search
-
-    # Get loans matching status + balance criteria
-    all_loans = get_loans(filters if search else None)
-    loans = [l for l in all_loans if l['status'] in ('active', 'approved') and l['balance'] > 0]
-
-    return render_template('accept_payment.html', loans=loans, search=search)
+    # Show ALL active/approved loans with balance > 0 (no limit)
+    loans = [l for l in get_loans() if l['status'] in ('active', 'approved') and l['balance'] > 0]
+    return render_template('accept_payment.html', loans=loans)
 
 # ── Audit Log Viewer ──
 

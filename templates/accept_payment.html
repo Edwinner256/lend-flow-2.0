@@ -14,32 +14,62 @@
                     <!-- Loan Selection -->
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Select Loan <span class="text-danger">*</span></label>
-                        <select name="loan_id" id="loanSelect" class="form-select form-select-lg" required>
+                        
+                        <!-- Search + Select combo -->
+                        <div class="input-group mb-2">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="loanSearchInput" class="form-control form-control-lg" 
+                                   placeholder="Type loan number, client name or phone…" autocomplete="off">
+                        </div>
+                        
+                        <select name="loan_id" id="loanSelect" class="form-select form-select-lg" required size="5"
+                                style="min-height:180px;">
                             <option value="">— Choose a loan —</option>
                             {% for loan in loans %}
                             <option value="{{ loan.id }}"
                                     data-client="{{ loan.client_name }}"
                                     data-number="{{ loan.loan_number }}"
                                     data-balance="{{ loan.balance }}"
-                                    data-fine="{{ loan.fine_amount }}">
+                                    data-fine="{{ loan.fine_amount }}"
+                                    data-officer="{{ loan.officer_name or '—' }}"
+                                    data-status="{{ loan.status }}"
+                                    data-phone="{{ loan.client_phone or '' }}">
                                 {{ loan.loan_number }} — {{ loan.client_name }} (UGX {{ "{:,.0f}".format(loan.balance) }})
                             </option>
                             {% endfor %}
                         </select>
+                        <small class="text-muted mt-1 d-block">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Showing <strong id="visibleCount">{{ loans|length }}</strong> active loan(s). 
+                            Use the search box above to filter.
+                            <span id="filteredCount" style="display:none;"></span>
+                        </small>
                     </div>
 
                     <!-- Loan Info Card (shown after selection) -->
                     <div id="loanInfo" class="card mb-4 border-gold" style="display:none;">
                         <div class="card-body py-3 px-4">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
                                     <span class="text-muted small">Loan</span>
-                                    <div class="fw-semibold" id="infoNumber">—</div>
+                                    <div class="fw-semibold fs-5" id="infoNumber">—</div>
                                     <small class="text-muted" id="infoClient"></small>
+                                    <div><small class="text-muted" id="infoOfficer"></small></div>
                                 </div>
-                                <div class="text-end">
+                                <div class="col-md-3 text-md-end">
                                     <span class="text-muted small">Outstanding Balance</span>
                                     <div class="fs-4 fw-bold text-danger" id="infoBalance">—</div>
+                                </div>
+                                <div class="col-md-3 text-md-end">
+                                    <span class="text-muted small">Payment Method</span>
+                                    <select name="payment_method" id="paymentMethod" class="form-select mt-1" required>
+                                        <option value="">Select…</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="mtn">MTN MoMo</option>
+                                        <option value="airtel">Airtel Money</option>
+                                        <option value="bank">Bank Transfer</option>
+                                        <option value="cheque">Cheque</option>
+                                    </select>
                                 </div>
                             </div>
                             <div id="fineInfo" class="mt-2 pt-2 border-top" style="display:none;">
@@ -77,24 +107,13 @@
                             <small class="text-muted" id="maxAmountHint">Select a loan first</small>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Payment Method <span class="text-danger">*</span></label>
-                            <select name="payment_method" class="form-select form-select-lg" required>
-                                <option value="">Select method…</option>
-                                <option value="cash">Cash</option>
-                                <option value="mtn">MTN Mobile Money</option>
-                                <option value="airtel">Airtel Money</option>
-                                <option value="bank">Bank Transfer</option>
-                                <option value="cheque">Cheque</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
                             <label class="form-label fw-semibold">Reference / Transaction ID</label>
-                            <input type="text" name="reference" id="refInput" class="form-control" readonly style="background-color: var(--card-bg, #f8f9fa); cursor: not-allowed;">
-                            <small class="text-muted">Auto-generated — cannot be edited</small>
+                            <input type="text" name="reference" id="refInput" class="form-control" readonly style="background-color: var(--card-bg, #f8f9fa);">
+                            <small class="text-muted">Auto-generated</small>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Notes</label>
-                            <input type="text" name="notes" class="form-control" placeholder="Optional notes">
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Notes <small class="text-muted">(optional)</small></label>
+                            <input type="text" name="notes" class="form-control" placeholder="e.g. paid at branch, client reference…">
                         </div>
                     </div>
 
@@ -112,27 +131,34 @@
 
         {% if loans %}
         <div class="card mt-3">
-            <div class="card-header">
-                <i class="bi bi-list-ul me-2 text-gold"></i>Loans Awaiting Payment
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ul me-2 text-gold"></i>Loans Awaiting Payment</span>
                 <span class="badge bg-gold ms-2">{{ loans|length }}</span>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
+                <div class="table-responsive" style="max-height:460px;overflow-y:auto;">
+                    <table class="table table-hover mb-0" id="loansTable">
+                        <thead class="sticky-top" style="background:var(--card-bg,#fff);">
                             <tr>
                                 <th>Loan #</th>
                                 <th>Client</th>
+                                <th>Phone</th>
                                 <th>Balance</th>
+                                <th>Next Payment</th>
+                                <th>Officer</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for loan in loans[:10] %}
-                            <tr style="cursor:pointer" onclick="selectLoan({{ loan.id }})">
+                            {% for loan in loans %}
+                            <tr style="cursor:pointer" onclick="selectLoan({{ loan.id }})"
+                                data-search="{{ loan.loan_number }} {{ loan.client_name }} {{ loan.client_phone or '' }} {{ loan.officer_name or '' }}">
                                 <td><strong>{{ loan.loan_number }}</strong></td>
                                 <td>{{ loan.client_name }}</td>
+                                <td>{{ loan.client_phone or '—' }}</td>
                                 <td class="fw-semibold">UGX {{ "{:,.0f}".format(loan.balance) }}</td>
+                                <td>{{ loan.next_payment_date or '—' }}</td>
+                                <td><small>{{ loan.officer_name or '—' }}</small></td>
                                 <td>
                                     {% if loan.status == 'active' %}
                                     <span class="badge-status badge-active">Active</span>
@@ -152,22 +178,90 @@
 </div>
 
 <script>
-// ── Auto-generate reference ID (read-only, no refresh) ──
+// ── Auto-generate reference ID ──
 (function() {
     const now = new Date();
     const ds = now.getFullYear() +
         String(now.getMonth()+1).padStart(2,'0') +
         String(now.getDate()).padStart(2,'0');
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const ref = `PAY-${ds}-${rand}`;
-    document.getElementById('refInput').value = ref;
+    document.getElementById('refInput').value = `PAY-${ds}-${rand}`;
 })();
 
-// ── Loan selection auto-fill ──
+// ── Data stores ──
+const fineMap = {};
+const loanOptions = [];
+document.querySelectorAll('#loanSelect option[data-fine]').forEach(opt => {
+    fineMap[opt.value] = parseFloat(opt.dataset.fine) || 0;
+    loanOptions.push({
+        id: opt.value,
+        text: opt.textContent,
+        search: (opt.textContent + ' ' + (opt.dataset.client||'') + ' ' + (opt.dataset.phone||'') + ' ' + (opt.dataset.officer||'')).toLowerCase()
+    });
+});
+
+// ── Live search filter on the dropdown ──
+const searchInput = document.getElementById('loanSearchInput');
 const loanSelect = document.getElementById('loanSelect');
+const loansTable = document.getElementById('loansTable');
+const tableRows = loansTable ? loansTable.querySelectorAll('tbody tr') : [];
+const visibleCount = document.getElementById('visibleCount');
+const filteredCount = document.getElementById('filteredCount');
+
+searchInput.addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    let visible = 0;
+
+    // Filter the <select> options
+    Array.from(loanSelect.options).forEach((opt, idx) => {
+        if (idx === 0) return; // skip placeholder
+        const match = !q || opt.textContent.toLowerCase().includes(q) ||
+                      (opt.dataset.client && opt.dataset.client.toLowerCase().includes(q)) ||
+                      (opt.dataset.phone && opt.dataset.phone.toLowerCase().includes(q)) ||
+                      (opt.dataset.officer && opt.dataset.officer.toLowerCase().includes(q));
+        opt.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+
+    // Filter table rows
+    tableRows.forEach(row => {
+        const haystack = (row.dataset.search || '').toLowerCase();
+        row.style.display = !q || haystack.includes(q) ? '' : 'none';
+    });
+
+    // Update counts
+    visibleCount.textContent = visible;
+    if (q) {
+        filteredCount.style.display = 'inline';
+        filteredCount.innerHTML = `(<strong>${visible}</strong> match search)`;
+    } else {
+        filteredCount.style.display = 'none';
+    }
+
+    // Clear selection if the selected option is hidden
+    const sel = loanSelect.options[loanSelect.selectedIndex];
+    if (sel && sel.style.display === 'none') {
+        loanSelect.value = '';
+        loanSelect.dispatchEvent(new Event('change'));
+    }
+});
+
+// ── Click row to select loan ──
+function selectLoan(id) {
+    const option = loanSelect.querySelector(`option[value="${id}"]`);
+    if (option && option.style.display !== 'none') {
+        loanSelect.value = id;
+        loanSelect.dispatchEvent(new Event('change'));
+        // Scroll option into view
+        loanSelect.focus();
+    }
+}
+
+// ── Loan selection auto-fill ──
 const loanInfo = document.getElementById('loanInfo');
 const infoNumber = document.getElementById('infoNumber');
 const infoClient = document.getElementById('infoClient');
+const infoOfficer = document.getElementById('infoOfficer');
 const infoBalance = document.getElementById('infoBalance');
 const infoFine = document.getElementById('infoFine');
 const fineInfo = document.getElementById('fineInfo');
@@ -175,21 +269,7 @@ const amountInput = document.getElementById('amountInput');
 const maxHint = document.getElementById('maxAmountHint');
 const typePrincipal = document.getElementById('typePrincipal');
 const typeFine = document.getElementById('typeFine');
-
-// Store fine amounts per loan option
-const fineMap = {};
-// Populate from data-fine attributes
-document.querySelectorAll('#loanSelect option[data-fine]').forEach(opt => {
-    fineMap[opt.value] = parseFloat(opt.dataset.fine) || 0;
-});
-
-function selectLoan(id) {
-    const option = loanSelect.querySelector(`option[value="${id}"]`);
-    if (option) {
-        loanSelect.value = id;
-        loanSelect.dispatchEvent(new Event('change'));
-    }
-}
+const paymentMethod = document.getElementById('paymentMethod');
 
 function updateMaxAmount() {
     const opt = loanSelect.options[loanSelect.selectedIndex];
@@ -213,6 +293,7 @@ loanSelect.addEventListener('change', function() {
         const balance = parseFloat(opt.dataset.balance);
         infoNumber.textContent = opt.dataset.number;
         infoClient.textContent = 'Client: ' + opt.dataset.client;
+        infoOfficer.textContent = 'Officer: ' + opt.dataset.officer;
         infoBalance.textContent = 'UGX ' + Number(balance).toLocaleString('en', {minimumFractionDigits:0, maximumFractionDigits:0});
         loanInfo.style.display = 'block';
         amountInput.focus();
@@ -227,12 +308,55 @@ loanSelect.addEventListener('change', function() {
         }
 
         updateMaxAmount();
+        
+        // Highlight row in table
+        tableRows.forEach(row => row.classList.remove('table-active'));
+        const activeRow = loansTable ? loansTable.querySelector(`tbody tr[onclick="selectLoan(${opt.value})"]`) : null;
+        if (activeRow) activeRow.classList.add('table-active');
     } else {
         loanInfo.style.display = 'none';
         amountInput.max = '';
         amountInput.placeholder = '';
         maxHint.textContent = 'Select a loan first';
+        tableRows.forEach(row => row.classList.remove('table-active'));
+    }
+});
+
+// ── Keyboard: up/down arrows navigate the select ──
+searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const visible = Array.from(loanSelect.options).filter(o => o.style.display !== 'none' && o.value);
+        if (!visible.length) return;
+        const curIdx = visible.indexOf(loanSelect.options[loanSelect.selectedIndex]);
+        let nextIdx;
+        if (e.key === 'ArrowDown') {
+            nextIdx = curIdx < visible.length - 1 ? curIdx + 1 : 0;
+        } else {
+            nextIdx = curIdx > 0 ? curIdx - 1 : visible.length - 1;
+        }
+        loanSelect.value = visible[nextIdx].value;
+        loanSelect.dispatchEvent(new Event('change'));
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (loanSelect.value) {
+            paymentMethod.focus();
+        }
     }
 });
 </script>
+
+<style>
+#loanSelect option:checked {
+    background: var(--dark-green, #1a3c2a);
+    color: #fff;
+}
+#loansTable tbody tr:hover {
+    background: rgba(26,60,42,0.05);
+}
+#loansTable tbody tr.table-active {
+    background: rgba(26,60,42,0.12) !important;
+    border-left: 3px solid var(--dark-green, #1a3c2a);
+}
+</style>
 {% endblock %}

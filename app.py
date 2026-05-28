@@ -4,6 +4,7 @@ Main Application - Enhanced with profile pictures, loan IDs, fines
 """
 
 import os
+import traceback
 import uuid
 from datetime import datetime, timedelta, date
 from functools import wraps
@@ -833,9 +834,8 @@ def new_loan():
             return redirect(url_for('manage_loans'))
 
         except Exception as e:
-            import traceback
             traceback.print_exc()
-            flash(f'Error creating loan: {type(e).__name__}: {e}', 'danger')
+            flash(f'Could not create loan. Please check your entries and try again. ({type(e).__name__})', 'danger')
             # Re-render the form so the user sees the error
             clients = get_all_users('client') if session['user_role'] in ('admin', 'loan_officer') else None
             return render_template('new_loan.html', clients=clients)

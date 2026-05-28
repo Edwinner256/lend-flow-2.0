@@ -1609,8 +1609,8 @@ def accept_payment():
         flash(f'{pay_label.title()} of UGX {amount:,.0f} recorded for {loan["loan_number"]}!', 'success')
         return redirect(url_for('accept_payment'))
 
-    # Show ALL active/approved loans with balance > 0 (no limit)
-    loans = [l for l in get_loans() if l['status'] in ('active', 'approved') and l['balance'] > 0]
+    # Show ALL loans with outstanding balance (any status)
+    loans = [l for l in get_loans() if l['balance'] > 0]
     return render_template('accept_payment.html', loans=loans)
 
 # ── Audit Log Viewer ──

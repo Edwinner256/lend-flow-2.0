@@ -10,9 +10,9 @@ from app.database import get_db
 
 # ── SMS API Configuration ──
 SMS_API_URL = "https://comms.egosms.co/api/v1/plain"
-SMS_USER = "vaultacashexpress"
+SMS_USER = "edwinfantacy@gmail.com"
 SMS_PASSWORD = "Pilatue#2620"
-SMS_SENDER = "Vaulta Cash"
+SMS_SENDER = "Vaulta Cash Loans"
 
 # Mock mode: when True, simulates successful SMS sends without hitting the real API.
 # Set to False for production use with valid egoSMS credentials.
